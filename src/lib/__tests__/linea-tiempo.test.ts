@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   TRAMO,
   agruparMismoDia,
+  ayudaHitos,
+  ayudaHoy,
+  cuandoRelativo,
   fueraDeOrden,
   lineaTiempo,
   partirEnSolicitada,
@@ -464,5 +467,50 @@ describe("repartirEtiquetasPx", () => {
 
   it("devuelve en el orden de entrada", () => {
     expect(repartirEtiquetasPx([{ x: 400, w: 20 }, { x: 50, w: 20 }], 500)).toEqual([390, 40]);
+  });
+});
+
+describe("globos de la línea", () => {
+  const ped = conFab("2026-10-30", "2026-11-26", "2026-12-14", "2026-11-23");
+  const { hitos } = lineaTiempo(ped, HOY);
+  const de = (clave: string) => hitos.filter((h) => h.clave === clave);
+  const extra = { isoSolicitada: "2026-11-23" };
+
+  it("cuandoRelativo habla como se habla", () => {
+    expect(cuandoRelativo("2026-11-26", HOY)).toBe("hoy");
+    expect(cuandoRelativo("2026-11-27", HOY)).toBe("mañana");
+    expect(cuandoRelativo("2026-11-25", HOY)).toBe("ayer");
+    expect(cuandoRelativo("2026-12-01", HOY)).toBe("en 5 d");
+    expect(cuandoRelativo("2026-11-23", HOY)).toBe("hace 3 d");
+  });
+
+  it("la planificada dice qué es, con el día de la semana, y cuánto queda", () => {
+    expect(ayudaHitos(de("planificacion"), HOY, extra)).toBe(
+      "Planificada · jue 26/11\nDía en que debería estar planteado · toca hoy\nCae después de la solicitada",
+    );
+  });
+
+  it("la solicitada vencida lo dice", () => {
+    expect(ayudaHitos(de("solicitada"), HOY, extra)).toBe(
+      "Solicitada · lun 23/11\nCuando el cliente lo quiere instalado · pasó hace 3 d",
+    );
+  });
+
+  it("la fabricación posterior a la solicitada avisa", () => {
+    expect(ayudaHitos(de("fabricacion"), HOY, extra)).toContain("Cae después de la solicitada");
+  });
+
+  it("el año solo si no es el de hoy", () => {
+    const viejo = lineaTiempo(conFab("2025-12-01", "2025-12-10", undefined, "2026-01-15"), HOY).hitos;
+    expect(ayudaHitos(viejo.filter((h) => h.clave === "creacion"), HOY)).toContain("01/12/2025");
+  });
+
+  it("hoy junta el plazo de OT y el del cliente", () => {
+    expect(ayudaHoy(HOY, { sinPlanificar: false, diasTarde: -1 }, 14)).toBe(
+      "Hoy · jue 26/11\nQuedan 1 d para plantearlo · 14 d para la solicitada",
+    );
+    expect(ayudaHoy(HOY, { sinPlanificar: false, diasTarde: 3 }, -2)).toContain(
+      "3 d pasada la planificada · la solicitada pasó hace 2 d",
+    );
   });
 });

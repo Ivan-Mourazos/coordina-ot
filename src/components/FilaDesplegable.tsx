@@ -119,8 +119,12 @@ export function FilaDesplegable({
           pareciera apagado (Iván, 15/10/2026). Después fue dorado oscuro en
           oscuro, y tampoco: ahora es la misma que cerrada (16/10/2026). La
           raya dorada de la izquierda dice cuál está abierto. */}
+      {/* `data-fila-cabecera`: lo que sale del `pointer-events-none` solo para
+          enseñar su globo (los puntos del recorrido) busca aquí el botón y le
+          pasa el clic, para que pulsar encima siga abriendo la fila. */}
       <div
         ref={cabecera}
+        data-fila-cabecera=""
         className={`relative ${columnas} px-3 py-1.5 ${
           abierta ? "cabecera-abierta" : "hover:bg-surface-2"
         } ${fichando ? `fila-fichando-${fichando}` : ""}`}

@@ -188,6 +188,88 @@ export function partirEnSolicitada(
   };
 }
 
+// ─── Lo que dice cada punto al pasar el ratón ────────────────────────────────
+// Antes el globo repetía la fecha ("Fabricación: 01/12"), que ya se lee en la
+// línea. Lo que no se lee es QUÉ es esa fecha para el pedido y cuánto falta:
+// eso es lo que cuenta ahora, en dos líneas — nombre y fecha con el día de la
+// semana, y debajo qué significa y cuánto queda o hace.
+
+const DIA_SEMANA = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+
+/** "jue 27/11", con el año si no es el de hoy. */
+function fechaConDia(iso: string, hoy: string): string {
+  const d = new Date(`${iso}T12:00:00Z`).getUTCDay();
+  const [y, m, dd] = iso.split("-");
+  return `${DIA_SEMANA[d]} ${dd}/${m}${y !== hoy.slice(0, 4) ? `/${y}` : ""}`;
+}
+
+/** "hoy", "mañana", "ayer", "en 5 d", "hace 3 d". */
+export function cuandoRelativo(iso: string, hoy: string): string {
+  const n = diasEntre(hoy, iso);
+  if (n === 0) return "hoy";
+  if (n === 1) return "mañana";
+  if (n === -1) return "ayer";
+  return n > 0 ? `en ${n} d` : `hace ${-n} d`;
+}
+
+const QUE_ES: Record<HitoLinea["clave"], string> = {
+  creacion: "Entró en OT",
+  planificacion: "Día en que debería estar planteado",
+  fabricacion: "Fin de fabricación previsto",
+  solicitada: "Cuando el cliente lo quiere instalado",
+};
+
+/** El texto del globo de un punto (o de varios que caen el mismo día). */
+export function ayudaHitos(
+  grupo: HitoLinea[],
+  hoy: string,
+  extra: { sinPlanificar?: boolean; isoSolicitada?: string } = {},
+): string {
+  return grupo
+    .map((h) => {
+      const nombre = h.clave === "planificacion" ? "Planificada" : h.etiqueta;
+      const cuando = cuandoRelativo(h.iso, hoy);
+      let que: string;
+      if (h.clave === "planificacion") {
+        const n = diasEntre(hoy, h.iso);
+        que = `${QUE_ES.planificacion} · ${n === 0 ? "toca hoy" : n > 0 ? `quedan ${n} d` : `pasada hace ${-n} d`}`;
+      } else if (h.clave === "solicitada" && extra.sinPlanificar) {
+        que = `${QUE_ES.solicitada} · ${cuando}\nSin fecha de planificación en RPS: se enseña como referencia, sin medir retraso contra ella`;
+      } else if (h.clave === "solicitada") {
+        que = `${QUE_ES.solicitada} · ${diasEntre(hoy, h.iso) < 0 ? `pasó ${cuando}` : cuando}`;
+      } else {
+        que = `${QUE_ES[h.clave]} · ${cuando}`;
+      }
+      if (h.clave !== "solicitada" && extra.isoSolicitada && h.iso > extra.isoSolicitada) {
+        que += "\nCae después de la solicitada";
+      }
+      return `${nombre} · ${fechaConDia(h.iso, hoy)}\n${que}`;
+    })
+    .join("\n\n");
+}
+
+/** El texto del globo de la raya de hoy: lo que importa hoy, junto. */
+export function ayudaHoy(
+  hoy: string,
+  u: { sinPlanificar: boolean; diasTarde: number },
+  diasParaEntrega: number,
+): string {
+  const ot = u.sinPlanificar
+    ? "Sin fecha de planificación"
+    : u.diasTarde === 0
+      ? "Toca plantearlo hoy"
+      : u.diasTarde < 0
+        ? `Quedan ${-u.diasTarde} d para plantearlo`
+        : `${u.diasTarde} d pasada la planificada`;
+  const cliente =
+    diasParaEntrega === 0
+      ? "la solicitada es hoy"
+      : diasParaEntrega > 0
+        ? `${diasParaEntrega} d para la solicitada`
+        : `la solicitada pasó hace ${-diasParaEntrega} d`;
+  return `Hoy · ${fechaConDia(hoy, hoy)}\n${ot} · ${cliente}`;
+}
+
 /** Reparte las tres fechas a escala real sobre una línea de 0 a 100.
  *
  *  A escala y no a intervalos iguales: si la fabricación cae pegada a la

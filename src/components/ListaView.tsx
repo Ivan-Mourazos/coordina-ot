@@ -2,7 +2,7 @@
 
 import { PedidoCodigo } from "./PedidoCodigo";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import type { EstadoMaterial, Operario, Pedido } from "@/lib/types";
 import {
   comprasPendientes,
@@ -20,6 +20,9 @@ import {
   ETIQUETA_CORTA,
   TRAMO,
   agruparMismoDia,
+  ayudaHitos,
+  ayudaHoy,
+  type HitoLinea,
   fueraDeOrden,
   lineaTiempo,
   partirEnSolicitada,
@@ -142,6 +145,84 @@ const RECORRIDO_RESERVA_PX = 440 - CHIP_TARDE_PX - 6;
 /** Aire entre dos fechas seguidas. */
 const HUECO_FECHAS_PX = 8;
 
+/** La leyenda de la columna Recorrido: cada nombre con la MISMA marca que lleva
+ *  en la línea (antes eran palabras sueltas y había que adivinar cuál era cuál),
+ *  y un globo con qué significa y qué quiere decir su color. Los nombres son los
+ *  de la ficha del pedido. */
+function LeyendaRecorrido() {
+  const punto = "inline-block size-2 shrink-0 rounded-full";
+  const items: { marca: ReactNode; nombre: string; fuerte?: boolean; ayuda: string }[] = [
+    {
+      marca: <span className={`${punto} bg-progress-pending`} />,
+      nombre: "llegada",
+      ayuda: "Llegada\nCuándo entró el pedido en OT",
+    },
+    {
+      // Los colores de la escalada en el mismo punto: la planificada es la
+      // única fecha que cambia de color según cómo va el pedido.
+      marca: (
+        <span
+          className={punto}
+          style={{
+            background: `conic-gradient(${TRAMO.holgado} 0 120deg, ${TRAMO.trabajo} 120deg 240deg, ${TRAMO.ajustado} 240deg)`,
+          }}
+        />
+      ),
+      nombre: "planificada",
+      fuerte: true,
+      ayuda:
+        "Planificada\nEl día en que debería estar planteado. Es la fecha de OT y la única con color:\nverde, a tiempo · naranja, pasada · rojo, se come el margen de Producción · morado, además la entrega ya pasó",
+    },
+    {
+      marca: <span className={`${punto} bg-progress-pending`} />,
+      nombre: "fabricación",
+      ayuda: "Fabricación\nFin de fabricación previsto en las OF",
+    },
+    {
+      marca: <span className="inline-block size-[7px] shrink-0 rotate-45 bg-text" />,
+      nombre: "solicitada",
+      fuerte: true,
+      ayuda: "Solicitada\nCuando el cliente lo quiere instalado: la meta del pedido. En morado si ya pasó",
+    },
+    {
+      marca: <span className="inline-block h-2.5 w-0.5 shrink-0 rounded-full bg-[var(--hoy)]" />,
+      nombre: "hoy",
+      ayuda: "Hoy\nDónde está el pedido ahora",
+    },
+    {
+      marca: (
+        <span
+          className="inline-block h-0.5 w-3 shrink-0"
+          style={{ background: "repeating-linear-gradient(90deg, var(--text-muted) 0 3px, transparent 3px 5px)" }}
+        />
+      ),
+      nombre: "tras la solicitada",
+      ayuda:
+        "Después de la solicitada\nLo que cae más allá de la entrega: con las fechas bien puestas no debería haber nada.\nSi una fecha no está en su sitio, lleva su nombre delante (Solic., Fab.…)",
+    },
+  ];
+  return (
+    <span className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] font-normal normal-case tracking-normal text-text-muted">
+      {items.map((it) => (
+        <span key={it.nombre} className="inline-flex cursor-help items-center gap-1" title={it.ayuda}>
+          {it.marca}
+          <span className={it.fuerte ? "font-semibold text-text" : undefined}>{it.nombre}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** Lo que sale del `pointer-events-none` de la fila solo para enseñar su globo
+ *  le devuelve el clic al botón de la fila (ver `FilaDesplegable`). Fuera de
+ *  una fila (el recorrido dentro del desplegable, en compacto) no hace nada. */
+function pasarClicAFila(e: MouseEvent<HTMLElement>) {
+  e.currentTarget
+    .closest("[data-fila-cabecera]")
+    ?.querySelector<HTMLButtonElement>(":scope > button")
+    ?.click();
+}
+
 /** El recorrido del pedido en una fila: los hitos a escala con su fecha
  *  encima, y la raya de hoy.
  *
@@ -174,7 +255,7 @@ function Recorrido({ pedido, hoy, terminado = false }: { pedido: Pedido; hoy: st
   // cada una lo calculaba por su cuenta, el mismo pedido salía de un color en
   // la lista y de otro al abrirlo.
   const u = urgenciaRecorrido(linea, pedido, hoy);
-  const { actual, color, sinPlanificar, diasTarde, esHoyLaPlanificada, vencido, enPlazo } = u;
+  const { actual, color, sinPlanificar, diasTarde, vencido, enPlazo } = u;
   const corte = pctSolicitada(hitos);
   const raros = fueraDeOrden(hitos);
   // Con el año cuando el recorrido cruza de un año a otro.
@@ -197,12 +278,9 @@ function Recorrido({ pedido, hoy, terminado = false }: { pedido: Pedido; hoy: st
     return { g, h, prefijo, fuerte, x: (g.pct / 100) * ancho, w: anchoTexto(texto, { peso: fuerte ? 700 : 400 }) };
   });
   const izq = repartirEtiquetasPx(fechas, ancho, HUECO_FECHAS_PX);
-  const cuanto = esHoyLaPlanificada
-    ? " (es hoy)"
-    : diasTarde < 0
-      ? ` (quedan ${-diasTarde} d)`
-      : ` (pasada hace ${diasTarde} d)`;
-  const fmtLargo = (iso: string) => iso.split("-").reverse().join("/");
+  // Lo que dice cada punto al pasar el ratón (ver `ayudaHitos`).
+  const isoSolicitada = hitos.find((h) => h.clave === "solicitada")?.iso;
+  const ayuda = (grupo: HitoLinea[]) => ayudaHitos(grupo, hoy, { sinPlanificar, isoSolicitada });
   // La raya de hoy se tiñe de morado solo cuando OT TAMBIÉN va tarde; con la
   // entrega vencida y la planificada por llegar manda el plazo de OT.
   const otYEntregaTarde = vencido && !enPlazo;
@@ -254,17 +332,12 @@ function Recorrido({ pedido, hoy, terminado = false }: { pedido: Pedido; hoy: st
             return (
               <span
                 key={g.iso}
-                className={`absolute top-0 whitespace-nowrap text-[10px] leading-none ${
+                className={`pointer-events-auto absolute top-0 cursor-pointer whitespace-nowrap text-[10px] leading-none ${
                   fuerte ? "font-bold" : "text-text-muted"
                 }`}
                 style={{ left: `${izq[i]}px`, color: colorFecha }}
-                title={
-                  !h.referencia
-                    ? g.hitos.map((x) => `${x.etiqueta}: ${fmtLargo(x.iso)}`).join(" · ")
-                    : sinPlanificar
-                      ? `Solicitada: ${fmtLargo(h.iso)} — este pedido no tiene fecha de planificación en RPS. Se enseña la entrega como referencia, pero sin medir retraso contra ella: no es la fecha en que hay que plantearlo.`
-                      : `Planificada: ${fmtLargo(h.iso)} — el día en que debería estar planteado${cuanto}`
-                }
+                title={ayuda(g.hitos)}
+                onClick={pasarClicAFila}
               >
                 {prefijo && <span className="font-semibold">{prefijo}</span>}
                 {fmtHito(g.iso)}
@@ -308,13 +381,30 @@ function Recorrido({ pedido, hoy, terminado = false }: { pedido: Pedido; hoy: st
               background: otYEntregaTarde ? TRAMO.fuera : "var(--hoy)",
               opacity: hoyFuera && !otYEntregaTarde ? 0.5 : 1,
             }}
-            title={
-              esHoyLaPlanificada
-                ? "Hoy es el día planificado: toca plantearlo hoy y aún se va a tiempo"
-                : vencido
-                  ? `Hoy · ${-diasParaEntrega} d pasada la solicitada`
-                  : `Hoy · quedan ${diasParaEntrega} d para la solicitada`
-            }
+          />
+          {/* Zonas para el ratón, encima de todo y transparentes. Los puntos
+              miden 8 px y la raya 2: apuntar a eso es de cirujano. La fila
+              entera es un botón y estas celdas van sin eventos, así que cada
+              zona los recupera solo para su globo y le pasa el clic a la fila
+              (pulsar encima sigue abriendo el pedido). La de hoy va la última
+              y es estrecha: si coincide con un hito, alrededor sigue saliendo
+              el del hito. */}
+          {agruparMismoDia(hitos).map((g) => (
+            <span
+              key={g.iso}
+              aria-hidden
+              className="pointer-events-auto absolute -top-1 h-4 w-4 -translate-x-1/2 cursor-pointer"
+              style={{ left: `${g.pct}%` }}
+              title={ayuda(g.hitos)}
+              onClick={pasarClicAFila}
+            />
+          ))}
+          <span
+            aria-hidden
+            className="pointer-events-auto absolute -top-1 h-4 w-1.5 -translate-x-1/2 cursor-pointer"
+            style={{ left: `${hoyPct}%` }}
+            title={ayudaHoy(hoy, u, diasParaEntrega)}
+            onClick={pasarClicAFila}
           />
         </div>
       </div>
@@ -326,7 +416,8 @@ function Recorrido({ pedido, hoy, terminado = false }: { pedido: Pedido; hoy: st
       <div className="flex shrink-0 justify-end" style={{ width: CHIP_TARDE_PX }}>
         {diasTarde > 0 && !sinPlanificar && (
           <span
-            className="rounded px-1 py-px text-[10px] font-bold leading-none"
+            className="pointer-events-auto cursor-pointer rounded px-1 py-px text-[10px] font-bold leading-none"
+            onClick={pasarClicAFila}
             // El texto va del color del FONDO de la app, no blanco fijo: sobre
             // el ámbar claro del tema oscuro, un "+3d" en blanco se leía a 2:1.
             style={{ background: vencido ? TRAMO.fuera : TRAMO.trabajo, color: "var(--surface)" }}
@@ -505,14 +596,7 @@ export function ListaView({
       <span className={columnaMaterial}>Material</span>
       <span>
         <span className="block">Recorrido</span>
-        <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-text-muted">
-          {/* Los mismos nombres que la ficha del pedido (antes aquí era
-              "creación" y allí "Llegada"), y la forma de la solicitada y de
-              hoy, que en la fila no llevan rótulo. */}
-          llegada · <span className="font-semibold text-text">planificada</span> ·
-          fabricación · <span className="font-semibold text-text">◆ solicitada</span> ·{" "}
-          <span aria-hidden className="inline-block h-2.5 w-0.5 rounded-full bg-[var(--hoy)] align-[-1px]" /> hoy
-        </span>
+        <LeyendaRecorrido />
       </span>
     </>
   );

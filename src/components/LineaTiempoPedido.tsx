@@ -6,6 +6,9 @@ import { hoyISO } from "@/lib/types";
 import {
   TRAMO,
   agruparMismoDia,
+  ayudaHitos,
+  ayudaHoy,
+  cuandoRelativo,
   lineaTiempo,
   partirEnSolicitada,
   pctSolicitada,
@@ -52,14 +55,21 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
   const aniosDistintos = new Set(hitos.map((h) => h.iso.slice(0, 4))).size > 1;
   const fmtHito = (iso: string) => `${fmtDiaMes(iso)}${aniosDistintos ? `/${iso.slice(2, 4)}` : ""}`;
 
-  // Dos hitos el mismo día: un solo rótulo con los dos nombres.
+  const isoSolicitada = hitos.find((h) => h.clave === "solicitada")?.iso;
+  const ayuda = (grupo: typeof hitos) => ayudaHitos(grupo, hoy, { sinPlanificar, isoSolicitada });
+
+  // Dos hitos el mismo día: un solo rótulo con los dos nombres. La solicitada
+  // lleva además cuánto falta ("10/12 · en 14 d"): es la meta del pedido y la
+  // cabecera solo habla de la planificada.
   const grupos = agruparMismoDia(hitos).map((g) => {
     const nombre = g.hitos.map((h) => h.etiqueta).join(" · ");
+    const conMeta = g.hitos.some((h) => h.clave === "solicitada") && !g.hitos.some((h) => h.referencia);
+    const fecha = `${fmtHito(g.iso)}${conMeta ? ` · ${cuandoRelativo(g.iso, hoy)}` : ""}`;
     const w = Math.max(
       anchoTexto(nombre.toUpperCase(), { peso: 600, espaciadoEm: 0.025 }),
-      anchoTexto(fmtHito(g.iso), { peso: 700 }),
+      anchoTexto(fecha, { peso: 700 }),
     );
-    return { g, nombre, w, x: (g.pct / 100) * ancho };
+    return { g, nombre, fecha, w, x: (g.pct / 100) * ancho };
   });
   const izq = repartirEtiquetasPx(grupos, ancho, 12);
 
@@ -133,7 +143,6 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
                 key={h.clave}
                 className="absolute top-px size-2.5 -translate-x-1/2 rotate-45 ring-2 ring-surface"
                 style={{ left: `${h.pct}%`, background: u.colorSolicitada ?? "var(--text)" }}
-                title={`${h.etiqueta}: ${fmtDiaMes(h.iso)}${vencido ? " (ya pasó)" : ""}`}
               />
             ) : (
               <span
@@ -145,7 +154,6 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
                   // son contexto y van en gris. Igual que en la lista.
                   background: h.referencia && color ? color : "var(--progress-pending)",
                 }}
-                title={`${h.etiqueta}: ${fmtDiaMes(h.iso)}`}
               />
             ),
           )}
@@ -160,13 +168,6 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
               background: otYEntregaTarde ? TRAMO.fuera : "var(--hoy)",
               opacity: hoyFuera && !otYEntregaTarde ? 0.5 : 1,
             }}
-            title={
-              hoyFuera
-                ? diasParaEntrega < 0
-                  ? `Hoy (${entrega.completa}: ya pasó)`
-                  : "Hoy, antes de que entrara el pedido"
-                : "Hoy"
-            }
           />
           <span
             className="absolute -top-[18px] -translate-x-1/2 text-[9px] font-bold uppercase leading-none tracking-wider text-text-muted"
@@ -174,31 +175,54 @@ export function LineaTiempoPedido({ pedido }: { pedido: Pedido }) {
           >
             Hoy
           </span>
+
+          {/* Zonas para el ratón, transparentes y encima: los puntos miden
+              12 px y la raya 2. Cada una saca el globo con qué es esa fecha y
+              cuánto falta (`ayudaHitos`). La de hoy, estrecha y la última. */}
+          {agruparMismoDia(hitos).map((g) => (
+            <span
+              key={g.iso}
+              aria-hidden
+              className="absolute -top-1.5 h-6 w-5 -translate-x-1/2 cursor-help"
+              style={{ left: `${g.pct}%` }}
+              title={ayuda(g.hitos)}
+            />
+          ))}
+          <span
+            aria-hidden
+            className="absolute -top-5 h-8 w-2 -translate-x-1/2 cursor-help"
+            style={{ left: `${hoyPct}%` }}
+            title={
+              hoyFuera && diasParaEntrega >= 0
+                ? `Hoy, antes de que entrara el pedido`
+                : ayudaHoy(hoy, u, diasParaEntrega)
+            }
+          />
         </div>
 
         {/* Nombre y fecha DEBAJO de su punto. Si dos se pisarían, se apartan
             lo justo; la primera se alinea al borde izquierdo y la última al
             derecho para no salirse del bloque. */}
         <div className="relative mt-2 h-7 bajo:mt-1">
-          {grupos.map(({ g, nombre, w }, i) => {
+          {grupos.map(({ g, nombre, fecha, w }, i) => {
             const ref = g.hitos.some((h) => h.referencia);
             const solicitada = g.hitos.some((h) => h.clave === "solicitada");
             const alin = izq[i] <= 0.5 ? "text-left" : izq[i] + w >= ancho - 0.5 ? "text-right" : "text-center";
             return (
-              <div key={g.iso} className={`absolute top-0 whitespace-nowrap ${alin}`} style={{ left: izq[i], width: w }}>
+              <div
+                key={g.iso}
+                className={`absolute top-0 cursor-help whitespace-nowrap ${alin}`}
+                style={{ left: izq[i], width: w }}
+                title={ayuda(g.hitos)}
+              >
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{nombre}</p>
                 {/* La planificada, con el color de la escalada; la solicitada,
                     en negrita como meta del pedido (morada si ya pasó). */}
                 <p
                   className={`text-[10px] ${ref || solicitada ? "font-bold" : "font-medium text-text-muted"}`}
                   style={{ color: ref ? color : solicitada ? (u.colorSolicitada ?? "var(--text)") : undefined }}
-                  title={
-                    ref && g.hitos[0].clave === "solicitada"
-                      ? "Este pedido no tiene fecha de planificación en RPS, así que la referencia es la entrega."
-                      : undefined
-                  }
                 >
-                  {fmtHito(g.iso)}
+                  {fecha}
                 </p>
               </div>
             );
