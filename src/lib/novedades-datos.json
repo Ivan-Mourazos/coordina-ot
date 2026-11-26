@@ -1,5 +1,18 @@
 [
   {
+    "id": "2026-11-26",
+    "hasta": "432616b",
+    "cambios": [
+      {
+        "tipo": "mejor",
+        "titulo": "En la línea de tiempo se ve de un vistazo si la entrega al cliente ya pasó",
+        "apartado": "ot",
+        "detalle": "La solicitada es el rombo del final; lo que cae después va en discontinua. Cuando una fecha no está en su sitio, lleva su nombre delante.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-25",
     "hasta": "0ba1d3f",
     "cambios": [
