@@ -14,11 +14,15 @@ import { SelectorOFs, useElegidas, type OFElegible } from "./SelectorOFs";
 // siempre (la de `useConfirmacion`, que la pone quien nos usa).
 
 export function AprobarInline({
+  claseBoton,
   ofs,
   onAprobar,
   label = "Aprobar",
   impedido,
 }: {
+  /** Clase del botón que lo abre, para que case con la barra donde va
+   *  (la ficha y Revisiones usan `BOTON_BLOQUE`). Sin ella, la de siempre. */
+  claseBoton?: string;
   ofs: readonly OFElegible[];
   onAprobar: (ofIds: string[]) => void;
   label?: string;
@@ -40,7 +44,7 @@ export function AprobarInline({
           onClick={() => setAbierto(true)}
           disabled={!!impedido}
           title={impedido ?? undefined}
-          className="rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
+          className={claseBoton ?? "rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"}
         >
           {label}
         </button>

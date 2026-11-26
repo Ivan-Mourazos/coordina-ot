@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { IconoPausa } from "./Iconos";
 import type { Pedido } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import { abierto, inicioDelTramoContinuo, previoSegundos, type Fichaje } from "@/lib/fichaje";
@@ -136,7 +137,7 @@ export function MiFichaje({
           title="Para el reloj. Las OF se quedan como están: no se cierra nada."
           className={`grid size-6 place-items-center rounded-full active:scale-[.97] motion-reduce:active:scale-100 text-[10px] ${ROL[ab.rol].solido}`}
         >
-          ⏸
+          <IconoPausa className="size-3" />
         </button>
       </div>
     );
@@ -164,7 +165,7 @@ export function MiFichaje({
         title="Para el reloj. Las OF se quedan como están: no se cierra nada."
         className={`grid size-6 place-items-center rounded-md text-[10px] ${ROL[ab.rol].solido}`}
       >
-        ⏸
+        <IconoPausa className="size-3" />
       </button>
       {/* Separa el fichaje del avatar, que sigue siendo el menú. */}
       <span aria-hidden className="ml-1 h-5 w-px bg-current opacity-25" />

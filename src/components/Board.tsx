@@ -5,6 +5,7 @@ import { AvisoLonaSinComprobar, AvisoStockPase, elegirCorreoStock } from "./Avis
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { EstadoOF, OF, Operario, Pedido, Rol } from "@/lib/types";
+import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { estaAtrasado, hoyISO } from "@/lib/types";
 import { ROL } from "@/lib/estado";
 import { Logo } from "./Logo";
@@ -1755,7 +1756,10 @@ export function Board({
   const pedirCoger = useCallback(
     (f: Facet) =>
       setCogerPendiente({
-        ofIds: f.ofs.map((o) => o.id),
+        // Solo lo que se puede traspasar (pendiente, en curso, devuelta), igual
+        // que «Coger» en la ficha: antes se llevaba también las que estaban
+        // en revisión o aprobadas del grupo.
+        ofIds: f.ofs.filter((o) => puedeTraspasarAutor(o)).map((o) => o.id),
         codigo: f.pedido.codigo,
         quien: nombreDe(f.locationId),
       }),
@@ -2173,6 +2177,8 @@ export function Board({
     total: number;
     /** Cuántas de esas ya estaban corriendo antes de pulsar. */
     yaCorrian: number;
+    /** Corría otro ROL: se corta (lo fichado se guarda) y empieza este. */
+    corta?: { rol: Rol; n: number };
   } | null>(null);
   /** Fichar ES empezar a trabajar.
    *
@@ -2284,7 +2290,11 @@ export function Board({
       const yaCorriendo = ab && ab.rol === rol ? ab.ofIds : [];
       const total = [...new Set([...yaCorriendo, ...ofIds])];
       if (total.length === yaCorriendo.length) return; // ya corrían todas
-      if (total.length > 1) {
+      // Con OTRO rol corriendo, el motor lo corta sin más (un tramo tiene un
+      // solo rol, OLANET no admite dos): pasar de plantear a revisar paraba
+      // el planteo sin decir nada. Ahora se pregunta, aunque sea UNA OF.
+      const corta = ab && ab.rol !== rol ? { rol: ab.rol, n: ab.ofIds.length } : undefined;
+      if (total.length > 1 || corta) {
         const ids = new Set(total);
         const porPedido = pedidos
           .map((p) => ({
@@ -2301,6 +2311,7 @@ export function Board({
           porPedido,
           total: total.length,
           yaCorrian: yaCorriendo.length,
+          corta,
         });
         return;
       }
@@ -3061,7 +3072,7 @@ export function Board({
                 ROL[rolFichajeDe(reanudables[0])].solido
               }`}
             >
-              ▶ Reanudar
+              Reanudar
             </button>
           )}
           <button
@@ -3324,6 +3335,7 @@ export function Board({
                 onOpen={openPedidoCb}
                 onCambiarRevisor={cambiarRevisorOF}
                 onAccion={accionOF}
+                onEmpezarRevision={(ofIds) => ficharOFsConAviso(ofIds, "revisar")}
               />
             </div>
           </>
@@ -3872,9 +3884,13 @@ Le llegará el aviso de que ya no lo lleva.`
       <ConfirmDialog
         abierto={fichajeVariasPendiente !== null}
         titulo={
-          (fichajeVariasPendiente?.yaCorrian ?? 0) > 0
-            ? `El reloj pasa a repartirse entre ${fichajeVariasPendiente?.total} OF`
-            : `Fichar ${fichajeVariasPendiente?.total ?? 0} OF a la vez`
+          fichajeVariasPendiente?.corta
+            ? fichajeVariasPendiente.rol === "revisar"
+              ? "Parar el planteo y empezar a revisar"
+              : "Parar la revisión y volver a plantear"
+            : (fichajeVariasPendiente?.yaCorrian ?? 0) > 0
+              ? `El reloj pasa a repartirse entre ${fichajeVariasPendiente?.total} OF`
+              : `Fichar ${fichajeVariasPendiente?.total ?? 0} OF a la vez`
         }
         mensaje={
           // Tres cosas distintas, y antes iban en una sola cadena con saltos de
@@ -3890,9 +3906,13 @@ Le llegará el aviso de que ya no lo lleva.`
           // quien creía estar fichando una sola OF.
           <>
             <p>
-              {(fichajeVariasPendiente?.yaCorrian ?? 0) > 0
-                ? `Ya tienes ${fichajeVariasPendiente?.yaCorrian} OF corriendo. Al añadir estas, el reloj queda repartido entre todas:`
-                : "Se va a poner el reloj en marcha en:"}
+              {fichajeVariasPendiente?.corta
+                ? `Ahora estás ${fichajeVariasPendiente.corta.rol === "revisar" ? "revisando" : "planteando"} ${
+                    fichajeVariasPendiente.corta.n === 1 ? "1 OF" : `${fichajeVariasPendiente.corta.n} OF`
+                  }. Ese reloj se para —lo fichado queda guardado— y empieza a contar en:`
+                : (fichajeVariasPendiente?.yaCorrian ?? 0) > 0
+                  ? `Ya tienes ${fichajeVariasPendiente?.yaCorrian} OF corriendo. Al añadir estas, el reloj queda repartido entre todas:`
+                  : "Se va a poner el reloj en marcha en:"}
             </p>
             <ul className="mt-2 flex flex-col gap-2.5">
               {(fichajeVariasPendiente?.porPedido ?? []).map((g) => (
@@ -3918,6 +3938,7 @@ Le llegará el aviso de que ya no lo lleva.`
                 </li>
               ))}
             </ul>
+            {(fichajeVariasPendiente?.total ?? 0) > 1 && (
             <p className="mt-3 border-t border-border pt-2 text-[11px]">
               El tiempo se reparte a partes iguales: cada OF cuenta{" "}
               <strong className="font-semibold text-text">
@@ -3926,6 +3947,7 @@ Le llegará el aviso de que ya no lo lleva.`
               de lo que marque el reloj. Si solo quieres fichar una, abre el pedido y ficha esa
               OF.
             </p>
+            )}
           </>
         }
         onConfirmar={() => {

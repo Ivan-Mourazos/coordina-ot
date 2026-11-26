@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { EstadoOF, Operario, Pedido } from "@/lib/types";
+import { BOTON_BLOQUE, BOTON_CIERRE, BOTON_NEUTRO } from "@/lib/botones";
 import { hoyISO } from "@/lib/types";
 import { ESTADO, ROL, etiquetaCantidad, fmtMin } from "@/lib/estado";
 import { FASES, pedidoListoParaPasar, ofsQueCuentan } from "@/lib/fases-tablero";
@@ -84,6 +85,7 @@ export function RevisionView({
   onOpen,
   onCambiarRevisor,
   onAccion,
+  onEmpezarRevision,
 }: {
   pedidos: Pedido[];
   operarios: Operario[];
@@ -95,6 +97,8 @@ export function RevisionView({
   onOpen: (p: Pedido) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
+  /** Empezar a revisar varias OF: por el fichaje con aviso (Board). */
+  onEmpezarRevision: (ofIds: string[]) => void;
 }) {
   // Para el aviso de "material pendiente" de `FilaOF`, la misma que usa
   // Pendientes: una sola vez aquí arriba y no una por fila.
@@ -213,6 +217,7 @@ export function RevisionView({
             onOpen={onOpen}
             onCambiarRevisor={onCambiarRevisor}
             onAccion={onAccion}
+              onEmpezarRevision={onEmpezarRevision}
           />
         ))}
       </div>
@@ -238,6 +243,7 @@ function SeccionRevision({
   onOpen,
   onCambiarRevisor,
   onAccion,
+  onEmpezarRevision,
 }: {
   titulo: string;
   estado: EstadoOF;
@@ -252,6 +258,8 @@ function SeccionRevision({
   onOpen: (p: Pedido) => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
+  /** Empezar a revisar varias OF: por el fichaje con aviso (Board). */
+  onEmpezarRevision: (ofIds: string[]) => void;
 }) {
   const nOF = facets.reduce((n, f) => n + f.ofs.length, 0);
   return (
@@ -289,6 +297,7 @@ function SeccionRevision({
               onOpen={() => onOpen(f.pedido)}
               onCambiarRevisor={onCambiarRevisor}
               onAccion={onAccion}
+              onEmpezarRevision={onEmpezarRevision}
             />
           ))
         )}
@@ -352,6 +361,7 @@ function FilaRevision({
   onOpen,
   onCambiarRevisor,
   onAccion,
+  onEmpezarRevision,
 }: {
   facet: RFacet;
   estado: EstadoOF;
@@ -367,6 +377,8 @@ function FilaRevision({
   onOpen: () => void;
   onCambiarRevisor: (ofId: string, revisorId: string) => void;
   onAccion: (ofId: string, accion: AccionOF, obs?: string) => void;
+  /** Empezar a revisar varias OF: por el fichaje con aviso (Board). */
+  onEmpezarRevision: (ofIds: string[]) => void;
 }) {
   const soloLectura = useSoloLectura();
   const { abierto: abierta, alternar } = useElementoAcordeon("filas");
@@ -377,9 +389,6 @@ function FilaRevision({
   // hay para diez minutos o para toda la tarde, y no salía por ningún lado.
   const minutos = ofs.reduce((n, o) => n + o.tiempoPlanteoMin + o.tiempoRevisionMin, 0);
 
-  function accionTodas(accion: AccionOF, obs?: string) {
-    ofIds.forEach((id) => onAccion(id, accion, obs));
-  }
 
   // Revisor común del grupo (si todas las OFs comparten uno) para pintar el
   // nombre actual entre los botones, sin pedir que se abra una lista.
@@ -576,17 +585,20 @@ function FilaRevision({
           {/* Acciones. Solo sale lo que me toca a MÍ: la máquina de estados ya
               filtra por rol, así que al autor esto se le queda en un resumen de
               lectura, que es lo que debe ser. */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1">
             {estado === "por_revisar" && (
               <>
                 {!soloLectura && selectorRevisor}
                 {puedo("empezar_revision") && (
                   <button
-                    onClick={() => accionTodas("empezar_revision")}
+                    // De UNA vez y por la confirmación de fichar (qué OF entran
+                    // y cómo se reparte el reloj). Antes iba OF por OF y sin
+                    // aviso: N peticiones y N tramos.
+                    onClick={() => onEmpezarRevision(ofIds)}
                     title="Pasa a En revisión y arranca tu fichaje de revisor"
-                    className={`boton-3d rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
+                    className={`${BOTON_BLOQUE} ${ROL.revisar.solido}`}
                   >
-                    Empezar revisión
+                    {etiquetaCantidad("Revisar", ofIds.length)}
                   </button>
                 )}
               </>
@@ -611,6 +623,7 @@ function FilaRevision({
                     onAprobar={(ids) => ids.forEach((id) => onAccion(id, "aprobar", undefined))}
                     impedido={impedido}
                     label={etiquetaCantidad("Aprobar", ofs.length)}
+                    claseBoton={`${BOTON_BLOQUE} ${BOTON_CIERRE}`}
                   />
                 )}
                 {puedo("devolver") && (
@@ -623,6 +636,7 @@ function FilaRevision({
                     fallos={fallos}
                     familias={familias}
                     impedido={impedido}
+                    claseBoton={`${BOTON_BLOQUE} ${BOTON_NEUTRO}`}
                     ofs={ofs.map((o) => ({ id: o.id, codigo: o.codigo }))}
                     onDevolver={(obs, ids) => (ids ?? ofIds).forEach((id) => onAccion(id, "devolver", obs))}
                   />

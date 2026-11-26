@@ -15,7 +15,7 @@ function presentar(estados: EstadoOF[]) {
   };
   return renderToStaticMarkup(createElement(RevisionView, {
     pedidos: [pedido], operarios: OPERARIOS, miId: "revisor",
-    onOpen() {}, onCambiarRevisor() {}, onAccion() {},
+    onOpen() {}, onCambiarRevisor() {}, onAccion() {}, onEmpezarRevision() {},
   }));
 }
 

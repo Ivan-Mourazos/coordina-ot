@@ -36,6 +36,7 @@ import { SelectorOFs, useElegidas } from "./SelectorOFs";
  *  se reserva para el "Confirmar devolución" de dentro, que sí es el punto
  *  de no retorno. */
 export function DevolverInline({
+  claseBoton,
   onDevolver,
   label = "Devolver con nota",
   causasSugeridas,
@@ -44,6 +45,9 @@ export function DevolverInline({
   ofs,
   impedido,
 }: {
+  /** Clase del botón que lo abre, para que case con la barra donde va
+   *  (la ficha y Revisiones usan `BOTON_BLOQUE`). Sin ella, la de siempre. */
+  claseBoton?: string;
   /** Devuelve. `ofIds` dice a CUÁLES: si no se pasa, a todas las del grupo.
    *  Quien lo llama decide qué significa "todas" — este componente solo sabe
    *  lo que le hayan dado en `ofs`. */
@@ -139,7 +143,7 @@ export function DevolverInline({
           onClick={() => setAbierto(true)}
           disabled={!!impedido}
           title={impedido ?? undefined}
-          className="rounded-lg px-2.5 py-1 text-xs font-semibold text-error ring-1 ring-red-500/35 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+          className={claseBoton ?? "rounded-lg px-2.5 py-1 text-xs font-semibold text-error ring-1 ring-red-500/35 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"}
         >
           {label}
         </button>

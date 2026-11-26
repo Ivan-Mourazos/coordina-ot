@@ -111,7 +111,7 @@ test("«Fichar» de la fila no cuenta las aprobadas", () => {
     }),
   );
   // Dos OF, una aprobada: el botón es de UNA (sin número).
-  expect(html).toMatch(/(⏱ Fichar|▶ Reanudar)<\/button>/);
+  expect(html).toMatch(/>(Fichar|Reanudar)<\/button>/);
 });
 
 test("«Pasar a revisión» sale en la fila cuando hay OF mías listas y se revisa", () => {

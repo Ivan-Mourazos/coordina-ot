@@ -8,6 +8,7 @@ import { ofsFichablesDe } from "@/lib/accion-pedido";
 import { ROL, bordePrioridad } from "@/lib/estado";
 import { tintaSobre } from "@/lib/tinta";
 import { ChipComprometida } from "./ChipComprometida";
+import { AL_PASAR, BOTON_FILA } from "@/lib/botones";
 import { FamiliaTag } from "./FamiliaTag";
 import { useSoloLectura } from "./SoloLectura";
 
@@ -95,7 +96,11 @@ export function LineaRevisar({
             </span>
           )}
         </span>
-        <span className={`flex min-w-0 items-center gap-1.5 ${pedido.fechaComprometida ? "@max-[26rem]:hidden" : ""}`}>
+        {/* `overflow-hidden`: en columna estrecha esta celda se queda casi sin
+            ancho, y los avatares (que no encogen) se salían por encima de
+            «Por empezar» (Iván, 26/11/2026). Ahora se recortan dentro, como
+            la misma celda de `PedidoLinea`. */}
+        <span className={`flex min-w-0 items-center gap-1.5 overflow-hidden ${pedido.fechaComprometida ? "@max-[26rem]:hidden" : ""}`}>
           {autores.slice(0, 2).map((op) => (
             <span
               key={op.id}
@@ -131,14 +136,15 @@ export function LineaRevisar({
         </span>
       </button>
 
-      <span className="flex shrink-0 items-center gap-1 empty:hidden">
+      {/* `-my-0.5`: que el botón no haga crecer la fila (ver PedidoLinea). */}
+      <span className="-my-0.5 flex shrink-0 items-center gap-1 empty:hidden">
         {soloLectura ? null : fichandoYo.length > 0 ? (
           <button
             onClick={() => onDesficharVarias(fichandoYo.map((o) => o.id))}
             title="Para el reloj y deja la revisión como está: sigue siendo tuya"
             className={`${BOTON_FILA} inline-flex ${ROL.revisar.solido}`}
           >
-            ⏸ Pausar{fichandoYo.length > 1 && ` ${fichandoYo.length}`}
+            Pausar{fichandoYo.length > 1 && ` ${fichandoYo.length}`}
           </button>
         ) : porEmpezar.length > 0 ? (
           <button
@@ -148,7 +154,7 @@ export function LineaRevisar({
           >
             {/* «Revisar», como en la ficha, y por la MISMA confirmación que
                 fichar (Board: `ficharOFsConAviso`); antes se la saltaba. */}
-            ⏱ Revisar{porEmpezar.length > 1 && ` ${porEmpezar.length}`}
+            Revisar{porEmpezar.length > 1 && ` ${porEmpezar.length}`}
           </button>
         ) : (
           reanudables.length > 0 && (
@@ -157,7 +163,7 @@ export function LineaRevisar({
               title="Vuelve a poner el reloj en marcha en esta revisión"
               className={`${BOTON_FILA} ${AL_PASAR} ${ROL.revisar.solido}`}
             >
-              ▶ Reanudar
+              Reanudar
             </button>
           )
         )}
@@ -166,8 +172,3 @@ export function LineaRevisar({
   );
 }
 
-/** Mismo botón de fila que `PedidoLinea`: 22 px, sin `display` propio. */
-const BOTON_FILA =
-  "boton-3d h-[22px] min-w-[74px] shrink-0 items-center justify-center gap-1 rounded-[7px] px-2 text-[11px] font-semibold whitespace-nowrap";
-/** Solo al pasar el ratón (o con Tab); fuera del flujo mientras no se ve. */
-const AL_PASAR = "hidden group-hover:inline-flex group-focus-within:inline-flex";

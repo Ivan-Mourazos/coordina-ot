@@ -44,23 +44,23 @@ const pinta = (ofs: OF[], miId: string, conCoger = false) =>
   );
 
 test("todas mías y en curso: «Fichar las N»", () => {
-  expect(pinta([of("a"), of("b"), of("c")], "ivan")).toContain("⏱ Fichar las 3");
+  expect(pinta([of("a"), of("b"), of("c")], "ivan")).toContain("Fichar las 3");
 });
 
 test("una aprobada y una de otra persona se quedan fuera, y el botón dice cuántas entran", () => {
   const html = pinta([of("a"), of("b"), of("c"), of("ok", { estado: "aprobada" }), of("t", { autorId: "tamara" })], "ivan");
-  expect(html).toContain("⏱ Fichar 3 de 5");
+  expect(html).toContain("Fichar 3 de 5");
   expect(html).toContain("OF-ok ya aprobada");
   expect(html).toMatch(/OF-t es de \p{L}+/u);
 });
 
 test("con tiempo ya fichado dice «Reanudar», como la fila del tablero", () => {
-  expect(pinta([of("a", { tiempoPlanteoMin: 30 }), of("b")], "ivan")).toContain("▶ Reanudar las 2");
+  expect(pinta([of("a", { tiempoPlanteoMin: 30 }), of("b")], "ivan")).toContain("Reanudar las 2");
 });
 
 test("pedido de otro: no hay «Fichar» principal; lo principal es Coger y fichar va a «⋯»", () => {
   const html = pinta([of("a", { autorId: "alberto" }), of("b", { autorId: "alberto" })], "ivan", true);
-  expect(html).not.toContain("⏱ Fichar las");
+  expect(html).not.toContain("Fichar las");
   expect(html).toContain("Coger las 2");
   expect(html).toContain("Fichar para ayudar (2)");
 });

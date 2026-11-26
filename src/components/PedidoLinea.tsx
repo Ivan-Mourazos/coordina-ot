@@ -7,6 +7,7 @@ import { accionesDisponibles } from "@/lib/acciones";
 import { accionOcultaSinRevision } from "@/lib/impreso";
 import { tintaSobre } from "@/lib/tinta";
 import { PedirRevisor } from "./PedirRevisor";
+import { AL_PASAR, BOTON_CIERRE, BOTON_FILA, BOTON_NEUTRO, BOTON_PASAR_REVISION } from "@/lib/botones";
 import type { Facet } from "./PedidoCard";
 import {
   autoresQueFaltan,
@@ -452,7 +453,10 @@ export function PedidoLinea({
           falta {faltanResumen}
         </span>
       ) : (
-        <span className="flex shrink-0 items-center gap-1 empty:hidden">
+        // `-my-0.5`: el botón mide 22 px y el texto de la fila 18,6; sin esto,
+        // al aparecer con el ratón la fila crecía 3 px y el panel entero
+        // daba un respingo (Iván, 26/11/2026). Así sobresale sin empujar.
+        <span className="-my-0.5 flex shrink-0 items-center gap-1 empty:hidden">
           {soloConsulta ? (
             // Trabajo de otro: COGER (pregunta antes, lo lleva el Board). Sin
             // `onCoger` —la consulta sin login— un candado con el motivo.
@@ -464,7 +468,7 @@ export function PedidoLinea({
                   onCoger(facet);
                 }}
                 title={`Pasa este pedido a tu panel (ahora está ${motivoBloqueo(facet)})`}
-                className={`${BOTON_FILA} ${AL_PASAR} chip-3d text-text`}
+                className={`${BOTON_FILA} ${AL_PASAR} ${BOTON_NEUTRO}`}
               >
                 Coger
               </button>
@@ -492,7 +496,7 @@ export function PedidoLinea({
                     fichandoYo.some((o) => o.fichandoRol === "revisar") ? ROL.revisar.solido : ROL.plantear.solido
                   }`}
                 >
-                  ⏸ Pausar{fichandoYo.length > 1 && ` ${fichandoYo.length}`}
+                  Pausar{fichandoYo.length > 1 && ` ${fichandoYo.length}`}
                 </button>
               ) : (
                 fichables.length > 0 && (
@@ -509,7 +513,7 @@ export function PedidoLinea({
                     className={`${BOTON_FILA} ${AL_PASAR} ${ROL.plantear.solido}`}
                   >
                     {/* Reanudar no es empezar, y las mismas palabras en todas partes. */}
-                    {minutosFichables > 0 ? "▶ Reanudar" : "⏱ Fichar"}
+                    {minutosFichables > 0 ? "Reanudar" : "Fichar"}
                     {fichables.length > 1 && ` ${fichables.length}`}
                   </button>
                 )
@@ -547,7 +551,7 @@ export function PedidoLinea({
                   type="button"
                   onClick={() => completarPedido(pedido.id)}
                   title="Pasa el pedido a Producción"
-                  className={`${BOTON_FILA} inline-flex bg-teal-700 text-white hover:bg-teal-800`}
+                  className={`${BOTON_FILA} inline-flex ${BOTON_CIERRE}`}
                 >
                   Pasar a Producción
                 </button>
@@ -601,20 +605,6 @@ export function PedidoLinea({
   );
 }
 
-/** Botón de FILA: el de la barra de la ficha, un punto más bajo (22 px) porque
- *  la fila mide 30. Sin `display`: lo pone quien lo usa (`inline-flex` fijo o
- *  `AL_PASAR`). */
-const BOTON_FILA =
-  "boton-3d h-[22px] min-w-[74px] shrink-0 items-center justify-center gap-1 rounded-[7px] px-2 text-[11px] font-semibold whitespace-nowrap";
-
-/** Solo al pasar el ratón por la fila (o al llegar con Tab). Fuera del flujo
- *  mientras no se ve: así en reposo el cliente tiene todo su sitio. */
-const AL_PASAR = "hidden group-hover:inline-flex group-focus-within:inline-flex";
-
-/** «Pasar a revisión»: morado con borde, como en la ficha. `outline` y no
- *  `ring`: el relieve de `boton-3d` es un box-shadow y se comía el anillo. */
-const BOTON_PASAR_REVISION =
-  "bg-surface text-violet-700 outline-[1.5px] outline-offset-[-1.5px] outline-violet-600 hover:bg-violet-50 dark:text-violet-300 dark:outline-violet-500 dark:hover:bg-violet-950/40";
 
 /** El revisor de las OF que esperan revisión (el primero que haya). */
 function deOTRevisor(ofs: OF[]): string | null {

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePopover } from "@/lib/usePopover";
+import { BOTON_BLOQUE, BOTON_CIERRE, BOTON_NEUTRO, BOTON_PASAR_REVISION } from "@/lib/botones";
 import type { EstadoOF, Operario, OF, OFFuera, Pedido, Rol } from "@/lib/types";
 import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
@@ -1035,7 +1036,7 @@ export function Drawer({
                       fichandoYo.some((o) => o.fichandoRol === "revisar") ? ROL.revisar.solido : ROL.plantear.solido
                     }`}
                   >
-                    ⏸ Pausar las {fichandoYo.length}
+                    Pausar las {fichandoYo.length}
                   </button>
                 ) : (
                   fichablesMias.length > 1 && (
@@ -1052,7 +1053,7 @@ export function Drawer({
                     >
                       {/* Reanudar no es empezar: las mismas palabras que la fila
                           del tablero. Y «3 de 5» cuando alguna se queda fuera. */}
-                      {fichablesMias.some((o) => o.tiempoPlanteoMin > 0) ? "▶ Reanudar" : "⏱ Fichar"}{" "}
+                      {fichablesMias.some((o) => o.tiempoPlanteoMin > 0) ? "Reanudar" : "Fichar"}{" "}
                       {fueraDeFichar.length > 0
                         ? `${fichablesMias.length} de ${fichablesMias.length + fueraDeFichar.length}`
                         : `las ${fichablesMias.length}`}
@@ -1069,7 +1070,7 @@ export function Drawer({
                     title={`Pasa a "En revisión" las ${paraEmpezarRevision.length} OF que te tocan de este pedido y pone tu reloj en marcha`}
                     className={`${BOTON_BLOQUE} ${ROL.revisar.solido}`}
                   >
-                    ⏱ Revisar las {paraEmpezarRevision.length}
+                    Revisar las {paraEmpezarRevision.length}
                   </button>
                 )}
                 {/* Darlas por buenas todas juntas, que es como se acaba un parte
@@ -1084,7 +1085,7 @@ export function Drawer({
                     {...resaltar(paraAprobar, [], "revisar")}
                     disabled={!!impedidoPorGuia}
                     title={impedidoPorGuia ?? `Aprueba las ${paraAprobar.length} OF de este pedido que estás revisando`}
-                    className={`${BOTON_BLOQUE} bg-teal-700 text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40`}
+                    className={`${BOTON_BLOQUE} ${BOTON_CIERRE}`}
                   >
                     {/* Con una sola OF (lo normal en Diseño) el número sobra. */}
                     {etiquetaCantidad("Aprobar", paraAprobar.length)}
@@ -1100,7 +1101,7 @@ export function Drawer({
                       confirmacionImpreso.pedirConfirmacion(defImpreso);
                     }}
                     title="Da el pedido por impreso y lo pasa a Producción"
-                    className={`${BOTON_BLOQUE} bg-teal-700 text-white hover:bg-teal-800`}
+                    className={`${BOTON_BLOQUE} ${BOTON_CIERRE}`}
                   >
                     {defImpreso.label}
                   </button>
@@ -1153,7 +1154,7 @@ export function Drawer({
                     onClick={() => onCoger(paraCoger.map((o) => o.id))}
                     {...resaltar(paraCoger, [], "plantear")}
                     title={`Pasa a tu panel las ${paraCoger.length} OF de este pedido que lleva otra persona`}
-                    className={`${BOTON_BLOQUE} chip-3d text-text`}
+                    className={`${BOTON_BLOQUE} ${BOTON_NEUTRO}`}
                   >
                     {etiquetaCantidad("Coger", paraCoger.length)}
                   </button>
@@ -1164,7 +1165,7 @@ export function Drawer({
                       ? [
                           {
                             id: "ayudar",
-                            label: `⏱ Fichar para ayudar (${fichablesAjenas.length})`,
+                            label: `Fichar para ayudar (${fichablesAjenas.length})`,
                             title: "Tu tiempo en sus OF; siguen siendo de quien las lleva",
                             onClick: () => onFichar(fichablesAjenas.map((o) => o.id), "plantear"),
                           },
@@ -1252,6 +1253,7 @@ export function Drawer({
                 }
                 fallos={fallosGuia}
                 familias={familiasDelPedido}
+                claseBoton={`${BOTON_BLOQUE} ${BOTON_NEUTRO}`}
                 // Aquí también se pueden descartar las que están bien, aunque
                 // cada fila siga teniendo su propio botón: quien abre este ya
                 // tiene el cuadro delante y no debería cerrarlo para ir a la
@@ -1479,18 +1481,6 @@ function LineaRol({
 /** Desde cuántas OF se pliegan las tarjetas de la ficha. Con dos, abiertas
  *  caben en pantalla; con tres ya empujan las notas y los documentos fuera. */
 const PLEGAR_DESDE = 3;
-
-/** Todos los botones de la barra del bloque, del MISMO tamaño (Iván,
- *  26/11/2026: «no me gustan que no sean todos del mismo tamaño» y «son muy
- *  grandes, piensa que vamos limitados de espacio»). 24 px de alto. */
-const BOTON_BLOQUE =
-  "boton-3d inline-flex h-6 min-w-[84px] items-center justify-center gap-1 rounded-[7px] px-2 text-[11px] font-semibold whitespace-nowrap";
-
-/** «Pasar a revisión»: morado con borde, secundario junto al verde de fichar.
- *  `outline` y no `ring`: el relieve de `boton-3d` es un box-shadow y se comía
- *  el anillo. */
-const BOTON_PASAR_REVISION =
-  "bg-surface text-violet-700 outline-[1.5px] outline-offset-[-1.5px] outline-violet-600 hover:bg-violet-50 dark:text-violet-300 dark:outline-violet-500 dark:hover:bg-violet-950/40";
 
 /** «⋯» de la barra: lo poco frecuente. Solo sale si tiene algo dentro. */
 function MenuMasBloque({
@@ -2202,7 +2192,7 @@ function AccionesOF({
           }
           onClick={() => onDesfichar(of.id)}
         >
-          ⏸ {otrasEnMiReloj > 0 ? "Pausar solo esta" : "Pausar"}
+          {otrasEnMiReloj > 0 ? "Pausar solo esta" : "Pausar"}
         </Btn>
       ) : finalizarOF && of.estado === "aprobada" ? (
         // Finalizada en Diseño: nada de «Reanudar». Volver a ella es
@@ -2221,7 +2211,7 @@ function AccionesOF({
           >
             <span className="inline-flex">
               <Btn tone="reloj" onClick={() => onFichar([of.id], rolReloj)}>
-                {yaEmpezada ? "▶ Reanudar" : "⏱ Fichar"}
+                {yaEmpezada ? "Reanudar" : "Fichar"}
               </Btn>
             </span>
           </Pista>
@@ -2240,11 +2230,11 @@ function AccionesOF({
                 OF en revisión se leía como volver a tu planteo. */}
             {rolReloj === "revisar"
               ? yaEmpezada
-                ? "▶ Reanudar revisión"
-                : "⏱ Fichar revisión"
+                ? "Reanudar revisión"
+                : "Fichar revisión"
               : yaEmpezada
-                ? "▶ Reanudar"
-                : "⏱ Fichar"}
+                ? "Reanudar"
+                : "Fichar"}
           </Btn>
         )
       ) : (
@@ -2272,14 +2262,14 @@ function AccionesOF({
               ? "Entregada y esperando a que alguien la revise. Tu planteo ya está hecho"
               : `El reloj de la revisión es de ${quien}: tu planteo ya está entregado`;
           const rotulo = !relojDeOtro
-            ? "⏱ No fichable"
+            ? "No fichable"
             : quien === null
-              ? "⏱ Esperando revisor"
+              ? "Esperando revisor"
               // `en_revision` es que ya la cogió; `por_revisar`, que la tiene
               // pendiente. No es lo mismo y el rótulo lo dice.
               : of.estado === "en_revision"
-                ? `⏱ La revisa ${quien}`
-                : `⏱ Pendiente de ${quien}`;
+                ? `La revisa ${quien}`
+                : `Pendiente de ${quien}`;
           return (
             <span
               title={motivo ?? undefined}
