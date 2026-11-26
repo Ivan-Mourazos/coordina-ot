@@ -24,19 +24,19 @@ function pinta(opts: { fichandoYo?: boolean } = {}) {
   );
 }
 
-test("la cuenta de OF se aparta cuando aparece el botón encima", () => {
-  // Los botones se superponen al final de la fila y se tapaban con un fondo
-  // SEMITRANSPARENTE, que no tapa: se leía "1 OF" a través de "Fichar".
-  expect(pinta()).toContain("group-hover:invisible");
+test("la fecha y la cuenta de OF no se esconden nunca: los botones van en su hueco", () => {
+  // Antes los botones se superponían al final de la fila y la fecha y la
+  // cuenta de OF se apartaban (`invisible`) para dejarles sitio. Desde el
+  // 26/11/2026 van en su propio hueco y lo que cede es el cliente.
+  const html = pinta();
+  expect(html).not.toContain("group-hover:invisible");
+  expect(html).not.toMatch(/text-\[10px\][^"]*\binvisible\b/);
 });
 
-test("con mi reloj en marcha se aparta siempre: el botón de pausar está fijo", () => {
+test("con mi reloj en marcha, «Pausar» está siempre a la vista y la fecha también", () => {
   const html = pinta({ fichandoYo: true });
   expect(html).toContain("Pausar");
-  // `invisible` a secas, no solo al pasar el ratón: ese botón no se revela, ya
-  // está ahí. Lo que se aparta es la columna de la derecha entera —la fecha
-  // planificada y la cuenta de OF—, que es sobre la que se pinta el botón.
-  expect(html).toMatch(/text-\[10px\][^"]*\binvisible\b/);
+  expect(html).not.toMatch(/text-\[10px\][^"]*\binvisible\b/);
 });
 
 test("los tiempos de la fila van en minutos enteros, sin segundos", () => {
@@ -63,51 +63,74 @@ test("una OF detenida dice POR QUÉ no se puede fichar, en vez de no ofrecer nad
   expect(html).not.toContain("⏱ Fichar");
 });
 
-test("en esperando revisión el motivo es de la fase, no de la OF", () => {
-  // Ahí las OF sí son fichables: lo que pasa es que lo que se ficha es la
-  // revisión, y le toca al revisor.
+const pintaFase = (fase: "esperandoRevision" | "sinEmpezar", cambios: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => {
   const pedido = PEDIDOS[0];
-  const ofs = pedido.ofs.map((o) => ({ ...o, ajenaOT: false, detenida: false }));
-  const html = renderToStaticMarkup(
+  const ofs = pedido.ofs.map((o) => ({ ...o, ajenaOT: false, detenida: false, ...cambios }));
+  return renderToStaticMarkup(
     createElement(PedidoLinea, {
       facet: { pedido: { ...pedido, ofs }, locationId: "ivan", ofs },
-      fase: "esperandoRevision" as const,
+      fase,
       onOpen: noop, onFichar: noop, onDesficharVarias: noop, completarPedido: noop,
       operarios: OPERARIOS,
+      ...extra,
     }),
   );
-  expect(html).toContain("Lo tiene el revisor");
+};
+
+test("esperando revisión enseña QUIÉN la revisa, en vez del candado", () => {
+  // PEDIDOS[0] tiene una OF en revisión con revisor.
+  expect(pintaFase("esperandoRevision")).toContain("Lo revisa ");
 });
 
-test("la fila dice con el cursor que se puede pulsar, y el hueco de los botones no miente", () => {
-  const html = pinta();
-  // Abrir el pedido es la acción más usada de la fila, y la mano solo salía
-  // sobre los botones de acción: la regla global vive en `@layer base` y ahí
-  // la gana cualquier utilidad posterior.
-  expect(html).toContain("cursor-pointer");
-  // Y la franja de los botones no traga el clic cuando está vacía: tapa el
-  // final de la fila, que es zona de "abrir el pedido".
-  expect(html).toContain("pointer-events-none absolute inset-y-0 right-2");
-});
-
-test("el motivo se recorta en pantalla estrecha: la franja se superpone al cliente", () => {
-  // Esta franja va ENCIMA del final de la fila, así que un texto largo se mete
-  // sobre el nombre del cliente. En estrecho queda el candado y el motivo
-  // entero vive en el `title`.
-  const pedido = PEDIDOS[0];
-  const ofs = pedido.ofs.map((o) => ({ ...o, ajenaOT: false, detenida: false }));
-  const html = renderToStaticMarkup(
-    createElement(PedidoLinea, {
-      facet: { pedido: { ...pedido, ofs }, locationId: "ivan", ofs },
-      fase: "esperandoRevision" as const,
-      onOpen: noop, onFichar: noop, onDesficharVarias: noop, completarPedido: noop,
-      operarios: OPERARIOS,
-    }),
-  );
-  expect(html).toContain("@max-[26rem]:hidden");
-  // Corto en la fila, largo al posar el ratón.
+test("esperando revisión sin revisor conocido: el motivo de la fase, corto en estrecho", () => {
+  const html = pintaFase("esperandoRevision", { revisorId: null });
   expect(html).toContain("Lo tiene el revisor</span>");
   expect(html).toContain("le toca al revisor");
+  expect(html).toContain("@max-[26rem]:hidden");
+});
+
+test("la fila dice con el cursor que se puede pulsar, y ya no hay franja superpuesta", () => {
+  const html = pinta();
+  expect(html).toContain("cursor-pointer");
+  // Antes una franja `absolute` tapaba el final de la fila.
+  expect(html).not.toContain("absolute inset-y-0 right-2");
+});
+
+test("«Fichar» de la fila no cuenta las aprobadas", () => {
+  const pedido = PEDIDOS[0];
+  const ofs = pedido.ofs.map((o, i) => ({
+    ...o, ajenaOT: false, detenida: false, fichable: true, cerradaRps: undefined,
+    autorId: "ivan", estado: i === 0 ? ("aprobada" as const) : ("en_curso" as const),
+  }));
+  const html = renderToStaticMarkup(
+    createElement(PedidoLinea, {
+      facet: { pedido: { ...pedido, ofs }, locationId: "ivan", ofs },
+      fase: "planteando" as const,
+      onOpen: noop, onFichar: noop, onDesficharVarias: noop, completarPedido: noop,
+      operarios: OPERARIOS,
+    }),
+  );
+  // Dos OF, una aprobada: el botón es de UNA (sin número).
+  expect(html).toMatch(/(⏱ Fichar|▶ Reanudar)<\/button>/);
+});
+
+test("«Pasar a revisión» sale en la fila cuando hay OF mías listas y se revisa", () => {
+  const pedido = PEDIDOS[0];
+  const ofs = pedido.ofs.map((o) => ({
+    ...o, ajenaOT: false, detenida: false, fichable: true, cerradaRps: undefined,
+    autorId: "ivan", revisorId: null, estado: "en_curso" as const,
+  }));
+  const props = {
+    facet: { pedido: { ...pedido, ofs }, locationId: "ivan", ofs },
+    fase: "planteando" as const,
+    onOpen: noop, onFichar: noop, onDesficharVarias: noop, completarPedido: noop,
+    operarios: OPERARIOS,
+    miId: "ivan",
+    onPasarRevision: async () => true,
+  };
+  expect(renderToStaticMarkup(createElement(PedidoLinea, { ...props, seccion: { sinRevision: false } }))).toContain("Pasar a revisión");
+  // Donde no revisa nadie (Impresión), no.
+  expect(renderToStaticMarkup(createElement(PedidoLinea, { ...props, seccion: { sinRevision: true } }))).not.toContain("Pasar a revisión");
 });
 
 test("las filas del panel propio y de revisar llevan la clase del barrido de fichaje sin parche opaco encima", () => {

@@ -112,11 +112,9 @@ export function LineaRevisar({
         </span>
         {/* Se esconde cuando aparece el botón encima, igual que en PedidoLinea:
             el fondo de la fila es translúcido y el texto se vería a través. */}
-        <span
-          className={`flex shrink-0 items-center justify-end gap-2 whitespace-nowrap text-[10px] ${
-            fichandoYo.length > 0 ? "invisible" : "group-hover:invisible"
-          }`}
-        >
+        {/* Ya no se esconde: los botones van en su hueco, no encima
+            (comité del 26/11/2026). Lo que cede es el cliente. */}
+        <span className="flex shrink-0 items-center justify-end gap-2 whitespace-nowrap text-[10px]">
           <ChipComprometida pedido={pedido} soloFecha className="hidden shrink-0 tabular-nums @max-[26rem]:inline" />
           <span className={revisando ? `font-semibold ${ROL.revisar.texto}` : "text-text-muted"}>
             {revisando ? "Revisando" : "Por empezar"}
@@ -133,16 +131,12 @@ export function LineaRevisar({
         </span>
       </button>
 
-      <span
-        className={`pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1 rounded-r-lg pl-4 [&>*]:pointer-events-auto ${
-          fichandoYo.length > 0 ? "" : "group-hover:[background-color:inherit]"
-        }`}
-      >
+      <span className="flex shrink-0 items-center gap-1 empty:hidden">
         {soloLectura ? null : fichandoYo.length > 0 ? (
           <button
             onClick={() => onDesficharVarias(fichandoYo.map((o) => o.id))}
             title="Para el reloj y deja la revisión como está: sigue siendo tuya"
-            className={`boton-3d rounded-md px-2 py-0.5 text-[11px] font-semibold ${ROL.revisar.solido}`}
+            className={`${BOTON_FILA} inline-flex ${ROL.revisar.solido}`}
           >
             ⏸ Pausar{fichandoYo.length > 1 && ` ${fichandoYo.length}`}
           </button>
@@ -150,16 +144,18 @@ export function LineaRevisar({
           <button
             onClick={() => onEmpezar(porEmpezar.map((o) => o.id))}
             title="Pasa a En revisión y arranca tu fichaje de revisor"
-            className={`boton-3d rounded-md px-2 py-0.5 text-[11px] font-semibold opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 ${ROL.revisar.solido}`}
+            className={`${BOTON_FILA} ${AL_PASAR} ${ROL.revisar.solido}`}
           >
-            Empezar revisión
+            {/* «Revisar», como en la ficha, y por la MISMA confirmación que
+                fichar (Board: `ficharOFsConAviso`); antes se la saltaba. */}
+            ⏱ Revisar{porEmpezar.length > 1 && ` ${porEmpezar.length}`}
           </button>
         ) : (
           reanudables.length > 0 && (
             <button
               onClick={() => onFichar(reanudables.map((o) => o.id), "revisar")}
               title="Vuelve a poner el reloj en marcha en esta revisión"
-              className={`boton-3d rounded-md px-2 py-0.5 text-[11px] font-semibold opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 ${ROL.revisar.solido}`}
+              className={`${BOTON_FILA} ${AL_PASAR} ${ROL.revisar.solido}`}
             >
               ▶ Reanudar
             </button>
@@ -169,3 +165,9 @@ export function LineaRevisar({
     </div>
   );
 }
+
+/** Mismo botón de fila que `PedidoLinea`: 22 px, sin `display` propio. */
+const BOTON_FILA =
+  "boton-3d h-[22px] min-w-[74px] shrink-0 items-center justify-center gap-1 rounded-[7px] px-2 text-[11px] font-semibold whitespace-nowrap";
+/** Solo al pasar el ratón (o con Tab); fuera del flujo mientras no se ve. */
+const AL_PASAR = "hidden group-hover:inline-flex group-focus-within:inline-flex";

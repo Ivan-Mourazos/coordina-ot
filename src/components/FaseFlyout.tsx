@@ -13,6 +13,8 @@ import { BotonCerrarPanel, PanelFlotante } from "./PanelFlotante";
 export function FaseFlyout({
   facets,
   seccion,
+  miId,
+  onPasarRevision,
   faseId,
   onOpen,
   onClose,
@@ -26,6 +28,9 @@ export function FaseFlyout({
   /** De qué sección es lo que se está pintando. De ella sale el ORDEN de las
    *  columnas (ver `ordenFases` en lib/secciones.ts). */
   seccion: Seccion;
+  /** Para ofrecer «Pasar a revisión» en la fila (26/11/2026). */
+  miId?: string | null;
+  onPasarRevision?: (ofIds: string[], revisorId: string) => Promise<boolean>;
   faseId: string;
   onOpen: (f: Facet) => void;
   onClose: () => void;
@@ -70,6 +75,9 @@ export function FaseFlyout({
             completarPedido={completarPedido}
             operarios={operarios}
             ofIdsFichandoYo={ofIdsFichandoYo}
+            seccion={seccion}
+            miId={miId}
+            onPasarRevision={onPasarRevision}
           />
         ))}
       </div>

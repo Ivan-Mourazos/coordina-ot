@@ -3107,7 +3107,13 @@ export function Board({
                 operarios={operarios}
                 revisiones={misRevisiones}
                 onOpenPedido={openPedidoCb}
-                onEmpezarRevision={(ofIds) => ejecutarAccion(ofIds, "empezar_revision")}
+                // Por la misma confirmación que fichar: «Empezar revisión» se
+                // la saltaba y arrancaba el reloj sin decir qué OF entraban.
+                // Fichar en rol revisar ya pasa la OF a «en revisión» (ver
+                // el ligado en `ficharOFs`).
+                onEmpezarRevision={(ofIds) => ficharOFsConAviso(ofIds, "revisar")}
+                miId={miId}
+                onPasarRevision={pasarRevision}
                 onVerRevisiones={() => setVista("revision")}
               />
             </main>
@@ -3123,6 +3129,8 @@ export function Board({
                   openFacet(f);
                 }}
                 onClose={() => setFaseAbierta(null)}
+                miId={miId}
+                onPasarRevision={pasarRevision}
     ofIdsFichandoYo={ofIdsFichandoYo}
                 onFichar={ficharOFsConAviso}
                 onDesficharVarias={desficharVarias}

@@ -30,6 +30,8 @@ export function ZonaPersonal({
   operario,
   facets,
   seccion,
+  miId,
+  onPasarRevision,
   live,
   onOpen,
   onVerTodos,
@@ -56,6 +58,9 @@ export function ZonaPersonal({
   /** De qué sección es lo que se está pintando. De ella sale el ORDEN de las
    *  columnas (ver `ordenFases` en lib/secciones.ts). */
   seccion: Seccion;
+  /** Para ofrecer «Pasar a revisión» en la fila (26/11/2026). */
+  miId?: string | null;
+  onPasarRevision?: (ofIds: string[], revisorId: string) => Promise<boolean>;
   live?: LiveInfo | null;
   onOpen: (f: Facet) => void;
   /** Saca el pedido a Producción (columna "Listo para pasar"). */
@@ -199,6 +204,9 @@ export function ZonaPersonal({
                       completarPedido={completarPedido}
                       operarios={operarios}
                       ofIdsFichandoYo={ofIdsFichandoYo}
+                      seccion={seccion}
+                      miId={miId}
+                      onPasarRevision={onPasarRevision}
                     />
                   ))}
                   {resto > 0 && (
