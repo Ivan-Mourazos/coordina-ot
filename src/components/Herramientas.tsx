@@ -175,10 +175,14 @@ export function Herramientas({
               <span className="block truncate text-xs font-semibold text-text">{yo.nombre}</span>
               <span className="block text-[10px] leading-tight text-text-muted">
                 {/* Dirección no tiene sección: antes caía en la de siempre y
-                    a Esteban le ponía "Oficina Técnica". */}
+                    a Esteban le ponía "Oficina Técnica". Pero los de OT
+                    tampoco la llevan en el catálogo (es la de siempre), así
+                    que quien es técnico Y Dirección (Iván) salía como
+                    Dirección: con `tecnico`, manda su sección, como en la
+                    pantalla de entrar. */}
                 {yo.seccion
                   ? SECCIONES[yo.seccion].nombre
-                  : roles.includes("direccion")
+                  : roles.includes("direccion") && !roles.includes("tecnico")
                     ? "Dirección"
                     : SECCIONES[SECCION_POR_DEFECTO].nombre}
               </span>
