@@ -186,14 +186,25 @@ test("restringida nunca sale en la consulta pública, aunque se marque", () => {
   expect(db.leerNotas("AR.1")[1].enConsultaPublica).toBe(false);
 });
 
-test("avisa por mención, por público restringido, nunca al autor ni a nadie si no hay nada", () => {
+test("avisa por mención y por público de una persona, nunca al autor ni a nadie si no hay nada", () => {
   db.crearNota("AR.2", "carron", "nota suelta", T, { para: [], enConsultaPublica: false });
   db.crearNota("AR.2", "carron", "mira @[persona:ivan]", T, { para: [], enConsultaPublica: false });
-  db.crearNota("AR.2", "carron", "para prod", T, { para: [{ tipo: "seccion", id: "produccion" }], enConsultaPublica: false });
+  db.crearNota("AR.2", "carron", "para belén", T, { para: [{ tipo: "persona", id: "belen-alamancos" }], enConsultaPublica: false });
   db.crearNota("AR.2", "carron", "ojo @[seccion:ot]", T, { para: [], enConsultaPublica: false });
   expect(db.leerAvisosNotas(ivan, 30, AHORA).map((n) => n.texto).sort()).toEqual(["mira @[persona:ivan]", "ojo @[seccion:ot]"]);
-  expect(db.leerAvisosNotas(belen, 30, AHORA).map((n) => n.texto)).toEqual(["para prod"]);
+  expect(db.leerAvisosNotas(belen, 30, AHORA).map((n) => n.texto)).toEqual(["para belén"]);
   expect(db.leerAvisosNotas(carron, 30, AHORA)).toEqual([]);
+});
+
+test("«Solo para» una sección NO avisa: a una sección solo se le avisa mencionándola (Iván, 26/11/2026)", () => {
+  db.crearNota("AR.2", "carron", "para prod", T, { para: [{ tipo: "seccion", id: "produccion" }], enConsultaPublica: false });
+  db.crearNota("AR.2", "carron", "para prod @[seccion:produccion]", T, {
+    para: [{ tipo: "seccion", id: "produccion" }],
+    enConsultaPublica: false,
+  });
+  // La ven los dos de su público, pero solo suena la que la menciona.
+  expect(db.leerNotas("AR.2", belen)).toHaveLength(2);
+  expect(db.leerAvisosNotas(belen, 30, AHORA).map((n) => n.texto)).toEqual(["para prod @[seccion:produccion]"]);
 });
 
 test("Dirección no recibe @Oficina Técnica si no es de OT", () => {

@@ -27,8 +27,9 @@ import type { Lector } from "./lector-notas";
 // partir de la sesión:
 // · `nota_audiencia` vacía = para todos; con filas, solo esos destinos y el
 //   autor.
-// · `nota_mencion` = a quién nombra con @. Junto con la audiencia, decide la
-//   campana. Una nota sin mención ni restricción no avisa a nadie.
+// · `nota_mencion` = a quién nombra con @. Decide la campana, junto con la
+//   audiencia de PERSONAS (la de secciones no avisa, ver `leerAvisosNotas`).
+//   Una nota sin mención ni restricción a una persona no avisa a nadie.
 
 interface Fila {
   id: number;
@@ -371,8 +372,13 @@ export function borrarNota(
 }
 
 /** Las notas que avisan a este lector en los últimos `dias`: las que lo
- *  mencionan (a él o a una sección suya) y las que lo tienen en su público.
- *  Nunca las suyas.
+ *  mencionan (a él o a una sección suya) y las que son «Solo para» él en
+ *  persona. Nunca las suyas.
+ *
+ *  «Solo para» una SECCIÓN decide quién la VE, no a quién avisa (Iván,
+ *  26/11/2026): sonaba en la campana de toda la sección por cada nota que se
+ *  le restringía. A una sección se le avisa nombrándola con @; a una persona,
+ *  con @ o restringiéndole la nota a ella.
  *
  *  El instante del aviso (`avisoAt`) es cuándo entró ese destino —la mención o
  *  el público—, no cuándo se escribió la nota: una mención añadida al editar
@@ -394,7 +400,7 @@ export function leerAvisosNotas(lector: Lector, dias: number, ahora = new Date()
                     WHERE m.nota_id = n.id AND (m.tipo || ':' || m.destino) IN (SELECT value FROM json_each(@destinos))
                    UNION ALL
                    SELECT a.creado_at FROM nota_audiencia a
-                    WHERE a.nota_id = n.id AND a.creado_at IS NOT NULL
+                    WHERE a.nota_id = n.id AND a.creado_at IS NOT NULL AND a.tipo = 'persona'
                       AND (a.tipo || ':' || a.destino) IN (SELECT value FROM json_each(@destinos))
                    UNION ALL
                    SELECT n.creado_at WHERE pa.operario_id = @yo AND pa.borrado_at IS NULL

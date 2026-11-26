@@ -37,7 +37,9 @@ Una nota avisa SOLO a:
 
 - quien se **menciona** con `@persona`;
 - todos los de una **sección mencionada** con `@sección`;
-- el **público de «Solo para…»** (si te la restringen a ti, es para ti), sin necesitar `@`;
+- la **persona** del público de «Solo para…» (si te la restringen a ti, es para ti), sin necesitar `@`.
+  Una nota «Solo para» una **sección** no avisa a la sección: decide quién la ve, no a quién
+  avisa. Para avisarla hay que mencionarla con `@sección` (Iván, 26/11/2026);
 - el **autor de la nota a la que se responde**.
 
 Nunca al propio autor. **Una nota sin mención, sin restricción y que no es respuesta no
