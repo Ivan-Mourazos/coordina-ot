@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePopover } from "@/lib/usePopover";
 import type { EstadoOF, Operario, OF, OFFuera, Pedido, Rol } from "@/lib/types";
 import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
@@ -333,6 +334,10 @@ export function Drawer({
   const [mostrar, setMostrar] = useState<ReadonlySet<GrupoOculto>>(new Set());
   // Eligiendo el revisor del pedido entero (ver `paraRevisar` más abajo).
   const [pidiendoRevisorPedido, setPidiendoRevisorPedido] = useState<OF[] | null>(null);
+  // Las OF que se marcan al pasar el ratón por un botón del bloque: las que
+  // entrarían y las que se quedan fuera. Sin líneas de texto debajo de la
+  // barra (Iván, 26/11/2026): a qué afecta se ve en las propias OF.
+  const [resalte, setResalte] = useState<{ entran: Set<string>; fuera: Set<string>; rol: Rol } | null>(null);
   // Confirmación de las acciones de PEDIDO ENTERO ("Aprobar las N"); las de
   // cada OF tienen la suya dentro de `AccionesOF`.
   //
@@ -471,6 +476,15 @@ export function Drawer({
   // de `ofsFichablesDe`), así que meter aquí una OF que está en revisión le
   // ficharía la revisión como si fuera planteo, a nombre de quien pulse.
   const fichablesDeOT = ofsDeOT.filter((o) => esFichable(o) && rolFichajeDe(o) === "plantear");
+  // Y EN BLOQUE, solo trabajo MÍO pendiente (Iván, 26/11/2026): ni las ya
+  // aprobadas ni las de otra persona. «Fichar las 13» en un pedido de Alberto
+  // fichaba sus 13 OF a nombre de quien pulsaba, y en uno mezclado se llevaba
+  // también la aprobada. Las aprobadas se siguen pudiendo fichar UNA A UNA
+  // desde su fila (el retoque de última hora, ver `esFichable`), y las de otro
+  // van a «⋯ → Fichar para ayudar», que dice lo que hace.
+  const esMiaOLibre = (o: OF) => o.autorId === null || o.autorId === miId;
+  const fichablesMias = fichablesDeOT.filter((o) => o.estado !== "aprobada" && esMiaOLibre(o));
+  const fichablesAjenas = fichablesDeOT.filter((o) => o.estado !== "aprobada" && !esMiaOLibre(o));
   // Las de ESTE pedido que corren en MI reloj. `esFichable` no mira si la OF ya
   // se está fichando, así que sin esto el botón de arriba seguía diciendo
   // "Fichar las N" con el reloj ya en marcha: no cambiaba nunca a "Pausar".
@@ -610,11 +624,6 @@ export function Drawer({
   const paraRevisarBloque = porPedido
     ? paraRevisar.filter((o) => !fichandoYo.some((f) => f.id === o.id))
     : paraRevisar;
-  // Un solo revisor para todas: solo se puede si el autor es el MISMO en todas,
-  // porque el revisor no puede ser el autor y con dos autores no hay un único
-  // "todos menos tú" que valga para el grupo. Con autores distintos cada OF se
-  // manda desde su fila, que es donde se ve de quién es cada una.
-  const autoresParaRevisar = [...new Set((pidiendoRevisorPedido ?? paraRevisarBloque).map((o) => o.autorId))];
   // Aviso de "para el reloj primero". En OT tal cual estaba: cualquier ficha en
   // marcha en el pedido lo dispara, porque allí el bloque es todo o nada. En
   // Diseño solo tiene sentido si YA no queda nada que mandar sin pausar —si
@@ -627,7 +636,45 @@ export function Drawer({
   // mandarían al pausar: el botón se queda en su sitio, desactivado, en vez de
   // desaparecer y mover la ficha.
   const pasarBloque = avisoPausarPrimero ? paraRevisar : paraRevisarBloque;
+  // Un solo revisor para todas: solo se puede si el autor es el MISMO en todas,
+  // porque el revisor no puede ser el autor y con dos autores no hay un único
+  // "todos menos tú" que valga para el grupo. Con autores distintos cada OF se
+  // manda desde su fila, que es donde se ve de quién es cada una.
   const autoresDe = (ofs: OF[]) => new Set(ofs.map((o) => o.autorId)).size;
+  // Las de planteo del pedido que NO entran en «Fichar» en bloque, con su
+  // porqué: lo dice el `title` del botón y se apagan al pasar el ratón. Solo
+  // cuando el botón existe —con todo fuera, no hay botón que explicar—.
+  const fueraDeFichar: { of: OF; motivo: string }[] =
+    fichablesMias.length > 1
+      ? ofsDeOT
+          .filter((o) => rolFichajeDe(o) === "plantear" && !fichablesMias.includes(o))
+          .map((o) => ({
+            of: o,
+            motivo:
+              o.estado === "aprobada"
+                ? "ya aprobada"
+                : !esMiaOLibre(o)
+                  ? `es de ${opById(o.autorId)?.nombre.split(" ")[0] ?? "otra persona"}`
+                  : (motivoNoFichable(o)?.toLowerCase() ?? "no se puede fichar"),
+          }))
+      : [];
+  /** Lo que marca un botón del bloque al pasar el ratón. */
+  const resaltar = (entran: OF[], fuera: { of: OF }[] | OF[], rol: Rol) => ({
+    onMouseEnter: () =>
+      setResalte({
+        entran: new Set(entran.map((o) => o.id)),
+        fuera: new Set(fuera.map((f) => ("of" in f ? f.of.id : f.id))),
+        rol,
+      }),
+    onMouseLeave: () => setResalte(null),
+    onFocus: () =>
+      setResalte({
+        entran: new Set(entran.map((o) => o.id)),
+        fuera: new Set(fuera.map((f) => ("of" in f ? f.of.id : f.id))),
+        rol,
+      }),
+    onBlur: () => setResalte(null),
+  });
 
   // LO QUE YO TENGO QUE REVISAR en este pedido, haya empezado ya o no.
   //
@@ -962,184 +1009,208 @@ export function Drawer({
             {/* Fila propia, pegada a la derecha; `flex-wrap` para que, si no
                 caben, se partan entre sí en vez de desbordar. `empty:hidden`:
                 sin botones no deja hueco. */}
+            {/* LA BARRA DEL BLOQUE (rediseño del 26/11/2026, comité + Iván).
+                A la IZQUIERDA, bajo el título, en el mismo lado que los botones
+                de cada OF (antes iba a la derecha y la de cada OF a la
+                izquierda). Todos los botones del mismo tamaño (`BOTON_BLOQUE`).
+                Sin texto debajo: al pasar el ratón por un botón se marcan las
+                OF a las que afecta, y si alguna se queda fuera su `title` dice
+                cuál y por qué. Lo poco frecuente, en «⋯».
+                `flex-wrap` para que, si no caben, se partan entre sí en vez de
+                desbordar; `empty:hidden`: sin botones no deja hueco. */}
             {!soloLectura && (
-              <div className="mb-2 flex flex-wrap items-center justify-end gap-1.5 empty:hidden">
+              <div className="mb-2 flex flex-wrap items-center gap-1 empty:hidden">
                 {/* Con el reloj MÍO en marcha aquí, este botón para; si no, ficha.
-                    Mismo par que la fila del tablero (PedidoLinea): antes solo
-                    sabía fichar, así que tras fichar seguía ofreciendo fichar
-                    otra vez lo que ya estaba corriendo. */}
-                {/* Con UNA sola OF fichándose, la pausa está en su fila: aquí
-                    salía el mismo «Pausar» dos veces, y al fichar y pausar
-                    aparecía y desaparecía, moviendo la ficha. Mismo criterio
-                    que «Fichar las N», que solo sale con más de una
-                    (Iván, 16/10/2026). */}
+                    Con UNA sola OF fichándose, la pausa está en su fila (Iván,
+                    16/10/2026), igual que «Fichar», que solo sale con más de una. */}
                 {fichandoYo.length > 1 ? (
                   <button
+                    type="button"
                     onClick={() => onDesficharVarias(fichandoYo.map((o) => o.id))}
-                    title={
-                      fichandoYo.length === 1
-                        ? "Para el reloj y deja la OF como está: sigue siendo tuya y en curso"
-                        : `Para el reloj en las ${fichandoYo.length} OF que estás fichando de este pedido. Siguen como están: no se cierra nada.`
-                    }
+                    {...resaltar(fichandoYo, [], fichandoYo.some((o) => o.fichandoRol === "revisar") ? "revisar" : "plantear")}
+                    title={`Para el reloj en las ${fichandoYo.length} OF que estás fichando de este pedido. Siguen como están: no se cierra nada.`}
                     // Del color del rol que corre: revisando salía verde,
                     // como si se estuviera planteando (Iván, 16/10/2026).
-                    className={`boton-3d rounded-lg px-2.5 py-1 text-xs font-semibold ${
+                    className={`${BOTON_BLOQUE} ${
                       fichandoYo.some((o) => o.fichandoRol === "revisar") ? ROL.revisar.solido : ROL.plantear.solido
                     }`}
                   >
-                    ⏸ Pausar{fichandoYo.length > 1 && ` las ${fichandoYo.length}`}
+                    ⏸ Pausar las {fichandoYo.length}
                   </button>
                 ) : (
-                  fichablesDeOT.length > 1 && (
+                  fichablesMias.length > 1 && (
                     <button
-                      onClick={() => onFichar(fichablesDeOT.map((o) => o.id), "plantear")}
-                      title={`Pone el reloj en marcha en las ${fichablesDeOT.length} OF de planteo de este pedido`}
-                      className={`boton-3d rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.plantear.solido}`}
+                      type="button"
+                      onClick={() => onFichar(fichablesMias.map((o) => o.id), "plantear")}
+                      {...resaltar(fichablesMias, fueraDeFichar, "plantear")}
+                      title={
+                        fueraDeFichar.length > 0
+                          ? `Fuera: ${fueraDeFichar.map((f) => `${f.of.codigo} ${f.motivo}`).join(" · ")}`
+                          : `Pone el reloj en marcha en las ${fichablesMias.length} OF de planteo de este pedido`
+                      }
+                      className={`${BOTON_BLOQUE} ${ROL.plantear.solido}`}
                     >
-                      ⏱ Fichar las {fichablesDeOT.length}
+                      {/* Reanudar no es empezar: las mismas palabras que la fila
+                          del tablero. Y «3 de 5» cuando alguna se queda fuera. */}
+                      {fichablesMias.some((o) => o.tiempoPlanteoMin > 0) ? "▶ Reanudar" : "⏱ Fichar"}{" "}
+                      {fueraDeFichar.length > 0
+                        ? `${fichablesMias.length} de ${fichablesMias.length + fueraDeFichar.length}`
+                        : `las ${fichablesMias.length}`}
                     </button>
                   )
                 )}
-                {/* Empezar la revisión de todas. Como el "Fichar las N" del
-                    planteo: es el reloj quien las pasa a "En revisión". */}
+                {/* Empezar la revisión de todas: es el reloj quien las pasa a
+                    "En revisión". */}
                 {fichandoYo.length === 0 && paraEmpezarRevision.length > 1 && (
                   <button
+                    type="button"
                     onClick={() => onFichar(paraEmpezarRevision.map((o) => o.id), "revisar")}
+                    {...resaltar(paraEmpezarRevision, [], "revisar")}
                     title={`Pasa a "En revisión" las ${paraEmpezarRevision.length} OF que te tocan de este pedido y pone tu reloj en marcha`}
-                    className={`boton-3d rounded-lg px-2.5 py-1 text-xs font-semibold ${ROL.revisar.solido}`}
+                    className={`${BOTON_BLOQUE} ${ROL.revisar.solido}`}
                   >
                     ⏱ Revisar las {paraEmpezarRevision.length}
                   </button>
                 )}
-                {/* Coger todas las de otra persona de una vez. Desde dos, como
-                  los demás botones del bloque: con una, el de su fila. */}
-                {paraCoger.length >= 2 && onCoger && (
-                  <button
-                    onClick={() => onCoger(paraCoger.map((o) => o.id))}
-                    title={`Pasa a tu panel las ${paraCoger.length} OF de este pedido que lleva otra persona`}
-                    className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text"
-                  >
-                    {etiquetaCantidad("Coger", paraCoger.length)}
-                  </button>
-                )}
-                {/* Recuperar de golpe las que mandé a revisar. Desde dos: con
-                    una, el "⋯" de su fila hace lo mismo. En tono neutro, como
-                    "Dar por corregidas": es deshacer, no el camino de siempre. */}
-                {paraRecuperar.length >= 2 && (
-                  <button
-                    onClick={() => {
-                      idsAConfirmar.current = paraRecuperar.map((o) => o.id);
-                      confirmacionPedido.pedirConfirmacion(defRecuperar);
-                    }}
-                    title={`Devuelve a tu planteo las ${paraRecuperar.length} OF de este pedido que están esperando revisión`}
-                    className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text"
-                  >
-                    {etiquetaCantidad("Recuperar", paraRecuperar.length)}
-                  </button>
-                )}
-                {/* Y darlas por buenas todas juntas, que es como se acaba un
-                    parte que estaba bien. */}
+                {/* Darlas por buenas todas juntas, que es como se acaba un parte
+                    que estaba bien. */}
                 {paraAprobar.length >= minimoDelBloque && (
                   <button
+                    type="button"
                     onClick={() => {
                       idsAConfirmar.current = paraAprobar.map((o) => o.id);
                       confirmacionPedido.pedirConfirmacion(defAprobar);
                     }}
+                    {...resaltar(paraAprobar, [], "revisar")}
                     disabled={!!impedidoPorGuia}
-                    title={
-                      impedidoPorGuia ??
-                      `Aprueba las ${paraAprobar.length} OF de este pedido que estás revisando`
-                    }
-                    className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
+                    title={impedidoPorGuia ?? `Aprueba las ${paraAprobar.length} OF de este pedido que estás revisando`}
+                    className={`${BOTON_BLOQUE} bg-teal-700 text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40`}
                   >
-                    {/* En Diseño el pedido casi siempre es una sola OF, y este
-                        botón sale desde que se revisa por pedido: sin el
-                        singular de `etiquetaCantidad`, se leería "Aprobar las 1"
-                        todos los días. */}
+                    {/* Con una sola OF (lo normal en Diseño) el número sobra. */}
                     {etiquetaCantidad("Aprobar", paraAprobar.length)}
                   </button>
                 )}
-                {/* Dar por corregidas las devueltas que ya arreglé. Desde dos:
-                    con una, el botón de su fila hace lo mismo. En tono neutro,
-                    como en la fila: es el atajo, no el camino de siempre (que
-                    sigue siendo mandarla otra vez a revisión). */}
-                {paraCorregir.length >= 2 && (
-                  <button
-                    onClick={() => {
-                      idsAConfirmar.current = paraCorregir.map((o) => o.id);
-                      confirmacionPedido.pedirConfirmacion(defCorregidas);
-                    }}
-                    title={`Da por buenas las ${paraCorregir.length} OF devueltas que ya has corregido, sin otra vuelta de revisión`}
-                    className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text"
-                  >
-                    {etiquetaCantidad("Dar por corregidas", paraCorregir.length)}
-                  </button>
-                )}
-                {/* Darlas por buenas sin revisión, todas juntas. Desde dos, como
-                    "Dar por corregidas": con una, el "⋯" de su fila. */}
-                {!onImpreso && paraSinRevision.length >= 2 && (
-                  <button
-                    onClick={() => {
-                      idsAConfirmar.current = paraSinRevision.map((o) => o.id);
-                      confirmacionPedido.pedirConfirmacion(defSinRevision);
-                    }}
-                    title={`Da por buenas las ${paraSinRevision.length} OF de este pedido sin pasarlas por revisión`}
-                    className="chip-3d rounded-lg px-2.5 py-1 text-xs font-semibold text-text"
-                  >
-                    {etiquetaCantidad("Dar por buenas", paraSinRevision.length, "sin revisión")}
-                  </button>
-                )}
-                {/* Mandar el pedido entero a revisión, con UN revisor. Solo con
-                    más de una: con una sola, este botón y el de su fila harían lo
-                    mismo. */}
-                {/* El guardián NO es "fichandoYo.length === 0" a secas: eso
-                    bloqueaba TODO el pedido por fichar una sola OF (ver el
-                    porqué de `paraRevisarBloque` más arriba). En OT el término
-                    `porPedido` de esta condición es siempre falso, así que aquí
-                    no cambia nada: sigue exigiendo el reloj parado del todo. */}
-                {/* «Impreso» va justo antes que "Pasar a revisión", que es el
-                    sitio del botón principal del bloque; donde existe, aquel
-                    no sale (ver `paraImpreso`). */}
+                {/* «Impreso» va antes que «Pasar a revisión», en el sitio del
+                    botón principal; donde existe, aquel no sale. */}
                 {paraImpreso.length > 0 && !finalizarAbajo && (
                   <button
+                    type="button"
                     onClick={() => {
                       pedidoAImprimir.current = pedido.id;
                       confirmacionImpreso.pedirConfirmacion(defImpreso);
                     }}
                     title="Da el pedido por impreso y lo pasa a Producción"
-                    className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800"
+                    className={`${BOTON_BLOQUE} bg-teal-700 text-white hover:bg-teal-800`}
                   >
                     {defImpreso.label}
                   </button>
                 )}
-                {/* CON EL RELOJ EN MARCHA, EL BOTÓN SE QUEDA, DESACTIVADO, y dice
-                    por qué al pasar el ratón. Antes se escondía y salía en su
-                    lugar una línea «Pausa el reloj para poder pasar a revisión»
-                    debajo: al fichar y pausar, la ficha cambiaba de altura
-                    (Iván, 16/10/2026). */}
+                {/* PASAR A REVISIÓN, en morado con borde: el color de la
+                    revisión, y secundario al lado del verde de fichar (Iván:
+                    «el color de fichar y pasar a revisión son muy parecidos»).
+                    Con el reloj en marcha YA NO SALE APAGADO: al pulsarlo se
+                    pausa y se piden los compañeros (antes había que pausar y
+                    volver). Mientras se elige revisor, relleno. */}
                 {!onImpreso &&
                   pasarBloque.length >= minimoDelBloque &&
-                  (autoresDe(pasarBloque) === 1 || porPedido) &&
-                  !pidiendoRevisorPedido && (
+                  (autoresDe(pasarBloque) === 1 || porPedido) && (
                   <button
+                    type="button"
                     onClick={() => {
+                      if (pidiendoRevisorPedido) {
+                        setPidiendoRevisorPedido(null);
+                        return;
+                      }
                       // Las OF elegidas no cambian si llega un sondeo mientras
                       // se busca al compañero. El servidor vuelve a validarlas.
-                      setPidiendoRevisorPedido(paraRevisarBloque);
+                      if (avisoPausarPrimero) {
+                        onDesficharVarias(fichandoYo.map((o) => o.id));
+                        setPidiendoRevisorPedido(paraRevisar);
+                      } else {
+                        setPidiendoRevisorPedido(paraRevisarBloque);
+                      }
                     }}
-                    disabled={avisoPausarPrimero}
+                    {...resaltar(pasarBloque, [], "revisar")}
+                    aria-expanded={!!pidiendoRevisorPedido}
                     title={
                       avisoPausarPrimero
-                        ? "Pausa el reloj para poder pasar a revisión"
-                        : `Da por terminado el planteo de las ${paraRevisarBloque.length} OF y las manda a revisar, todas al mismo revisor`
+                        ? `Pausa el reloj y manda a revisar las ${pasarBloque.length} OF, todas al mismo revisor`
+                        : `Da por terminado el planteo de las ${pasarBloque.length} OF y las manda a revisar, todas al mismo revisor`
                     }
-                    className="boton-3d rounded-lg bg-teal-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
+                    className={`${BOTON_BLOQUE} ${
+                      pidiendoRevisorPedido ? ROL.revisar.solido : BOTON_PASAR_REVISION
+                    }`}
                   >
-                    {/* Mismo motivo que en "Aprobar": con una sola OF (lo
-                        normal en Diseño) el número sobra. */}
-                    {etiquetaCantidad("Pasar", pasarBloque.length, "a revisión")}
+                    Pasar a revisión
                   </button>
                 )}
+                {/* Coger las de otra persona. En un pedido ajeno es LO PRINCIPAL
+                    (antes destacaba «Fichar las 13», en verde): fichar en sus OF
+                    va a «⋯ → Fichar para ayudar». Desde dos: con una, su fila. */}
+                {paraCoger.length >= 2 && onCoger && (
+                  <button
+                    type="button"
+                    onClick={() => onCoger(paraCoger.map((o) => o.id))}
+                    {...resaltar(paraCoger, [], "plantear")}
+                    title={`Pasa a tu panel las ${paraCoger.length} OF de este pedido que lleva otra persona`}
+                    className={`${BOTON_BLOQUE} chip-3d text-text`}
+                  >
+                    {etiquetaCantidad("Coger", paraCoger.length)}
+                  </button>
+                )}
+                <MenuMasBloque
+                  opciones={[
+                    ...(fichandoYo.length <= 1 && fichablesMias.length <= 1 && fichablesAjenas.length > 1
+                      ? [
+                          {
+                            id: "ayudar",
+                            label: `⏱ Fichar para ayudar (${fichablesAjenas.length})`,
+                            title: "Tu tiempo en sus OF; siguen siendo de quien las lleva",
+                            onClick: () => onFichar(fichablesAjenas.map((o) => o.id), "plantear"),
+                          },
+                        ]
+                      : []),
+                    ...(paraCorregir.length >= 2
+                      ? [
+                          {
+                            id: "corregidas",
+                            label: etiquetaCantidad("Dar por corregidas", paraCorregir.length),
+                            title: "Las devueltas que ya arreglaste, sin otra vuelta de revisión",
+                            onClick: () => {
+                              idsAConfirmar.current = paraCorregir.map((o) => o.id);
+                              confirmacionPedido.pedirConfirmacion(defCorregidas);
+                            },
+                          },
+                        ]
+                      : []),
+                    ...(!onImpreso && paraSinRevision.length >= 2
+                      ? [
+                          {
+                            id: "sin-revision",
+                            label: etiquetaCantidad("Dar por buenas", paraSinRevision.length, "sin revisión"),
+                            title: "Aprobadas sin que nadie las revise",
+                            onClick: () => {
+                              idsAConfirmar.current = paraSinRevision.map((o) => o.id);
+                              confirmacionPedido.pedirConfirmacion(defSinRevision);
+                            },
+                          },
+                        ]
+                      : []),
+                    ...(paraRecuperar.length >= 2
+                      ? [
+                          {
+                            id: "recuperar",
+                            label: etiquetaCantidad("Recuperar", paraRecuperar.length),
+                            title: "Vuelven a tu planteo las que mandaste a revisar",
+                            onClick: () => {
+                              idsAConfirmar.current = paraRecuperar.map((o) => o.id);
+                              confirmacionPedido.pedirConfirmacion(defRecuperar);
+                            },
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
               </div>
             )}
 
@@ -1170,7 +1241,7 @@ export function Drawer({
               y en la fila de botones no cabe. Mismo criterio que el selector de
               revisor de aquí debajo. */}
           {!soloLectura && paraDevolver.length >= minimoDelBloque && (
-            <div className="mb-2 flex justify-end">
+            <div className="mb-2 flex justify-start">
               <DevolverInline
                 label={
                   fallosGuia.length > 0
@@ -1195,30 +1266,12 @@ export function Drawer({
 
           {/* El revisor se elige una vez y vale para todas. Los compañeros van
               debajo del rótulo y pueden saltar de línea en paneles estrechos. */}
+          {/* Como antes: pulsas «Pasar a revisión», salen los compañeros, y
+              pulsar un nombre las manda (Iván, 26/11/2026). Sin la frase de
+              encima ni el recuadro: a qué OF afecta ya se vio al pasar el ratón
+              por el botón. */}
           {!soloLectura && pidiendoRevisorPedido && (
-            <div className="mb-2 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-highlight)] p-2">
-              <p className="mb-1.5 text-[11px] text-text-muted">
-                {/* Con una sola OF (lo normal en Diseño) "el mismo revisor"
-                    no dice nada -ya es uno solo- y "la 1 OF" tampoco es
-                    castellano: la frase se reescribe entera en singular. */}
-                {pidiendoRevisorPedido.length > 1 ? (
-                  <>
-                    Se mandan a revisar las {pidiendoRevisorPedido.length} OF de{" "}
-                    {autoresParaRevisar.length === 1
-                      ? (opById(autoresParaRevisar[0])?.nombre ?? "este pedido")
-                      : "este pedido"}
-                    , con el mismo revisor.
-                  </>
-                ) : (
-                  <>
-                    Se manda a revisar la OF de{" "}
-                    {autoresParaRevisar.length === 1
-                      ? (opById(autoresParaRevisar[0])?.nombre ?? "este pedido")
-                      : "este pedido"}
-                    .
-                  </>
-                )}
-              </p>
+            <div className="mb-2">
               <PedirRevisor
                 operarios={operarios}
                 excluirIds={pidiendoRevisorPedido.map((o) => o.autorId)}
@@ -1246,6 +1299,9 @@ export function Drawer({
               <OFRow
                 key={of.id}
                 of={of}
+                resalte={
+                  resalte?.entran.has(of.id) ? resalte.rol : resalte?.fuera.has(of.id) ? "fuera" : undefined
+                }
                 pedidoCodigo={pedido.codigo}
                 operarios={operarios}
                 miId={miId}
@@ -1424,6 +1480,69 @@ function LineaRol({
  *  caben en pantalla; con tres ya empujan las notas y los documentos fuera. */
 const PLEGAR_DESDE = 3;
 
+/** Todos los botones de la barra del bloque, del MISMO tamaño (Iván,
+ *  26/11/2026: «no me gustan que no sean todos del mismo tamaño» y «son muy
+ *  grandes, piensa que vamos limitados de espacio»). 24 px de alto. */
+const BOTON_BLOQUE =
+  "boton-3d inline-flex h-6 min-w-[84px] items-center justify-center gap-1 rounded-[7px] px-2 text-[11px] font-semibold whitespace-nowrap";
+
+/** «Pasar a revisión»: morado con borde, secundario junto al verde de fichar.
+ *  `outline` y no `ring`: el relieve de `boton-3d` es un box-shadow y se comía
+ *  el anillo. */
+const BOTON_PASAR_REVISION =
+  "bg-surface text-violet-700 outline-[1.5px] outline-offset-[-1.5px] outline-violet-600 hover:bg-violet-50 dark:text-violet-300 dark:outline-violet-500 dark:hover:bg-violet-950/40";
+
+/** «⋯» de la barra: lo poco frecuente. Solo sale si tiene algo dentro. */
+function MenuMasBloque({
+  opciones,
+}: {
+  opciones: { id: string; label: string; title?: string; onClick: () => void }[];
+}) {
+  // Alineado al borde IZQUIERDO del botón: la barra va a la izquierda de la
+  // ficha y, alineado a la derecha, el menú se salía por encima del parte.
+  const { open, setOpen, ref, panelRef, idPanel } = usePopover<HTMLButtonElement>({
+    colocar: (caja, panel) => {
+      panel.style.left = `${Math.max(8, Math.min(caja.left, window.innerWidth - panel.offsetWidth - 8))}px`;
+      panel.style.top = `${caja.bottom + 4}px`;
+    },
+  });
+  if (opciones.length === 0) return null;
+  return (
+    <>
+      <button
+        ref={ref}
+        type="button"
+        popoverTarget={idPanel}
+        aria-expanded={open}
+        aria-label="Más acciones del pedido"
+        title="Más acciones"
+        className="chip-3d inline-flex size-6 items-center justify-center rounded-[7px] text-xs font-bold text-text-muted hover:text-text"
+      >
+        ⋯
+      </button>
+      <div ref={panelRef} id={idPanel} popover="auto" className="glass-pop m-0 w-60 rounded-lg p-1 text-text">
+        {/* Siempre en el DOM: el popover lo oculta el navegador hasta que se
+            abre, y así cada opción existe para el lector de pantalla y los
+            tests aunque el menú esté cerrado. */}
+        {opciones.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              title={o.title}
+              onClick={() => {
+                setOpen(false);
+                o.onClick();
+              }}
+              className="block w-full rounded-md px-2 py-1.5 text-left text-xs font-semibold hover:bg-surface-2"
+            >
+              {o.label}
+            </button>
+          ))}
+      </div>
+    </>
+  );
+}
+
 function OFRow({
   of,
   pedidoCodigo,
@@ -1449,7 +1568,11 @@ function OFRow({
   abierta = true,
   onAlternar,
   onCoger,
+  resalte,
 }: {
+  /** Se está señalando un botón del bloque: esta OF entra (con el color del
+   *  rol) o se queda fuera (apagada). */
+  resalte?: Rol | "fuera";
   /** Esta OF es de otra persona y se puede coger. */
   onCoger?: () => void;
   /** Se pliega a su cabecera (el pedido tiene muchas OF, ver `PLEGAR_DESDE`). */
@@ -1625,7 +1748,19 @@ function OFRow({
     // `bloque-3d`: el mismo relieve que el recorrido, las notas y los bloques
     // plegados de la ficha. Con `glass-chip` —el de los botones— las tarjetas
     // de OF tenían un canto distinto del resto.
-    <li className="bloque-3d rounded-xl p-3">
+    <li
+      className={`bloque-3d rounded-xl p-3 transition-[opacity,box-shadow] motion-reduce:transition-none ${
+        resalte === "fuera"
+          ? "opacity-45"
+          : // `outline` y no `ring`: el relieve de `bloque-3d` es un
+            // box-shadow y se comía el anillo, que es otro box-shadow.
+            resalte === "revisar"
+            ? "outline-2 outline-offset-[-2px] outline-violet-600 dark:outline-violet-400"
+            : resalte === "plantear"
+              ? "outline-2 outline-offset-[-2px] outline-emerald-600 dark:outline-emerald-400"
+              : ""
+      }`}
+    >
       {plegable ? (
         <button
           type="button"
