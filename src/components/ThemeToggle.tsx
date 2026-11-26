@@ -33,8 +33,10 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      aria-label="Cambiar tema"
-      title="Cambiar tema"
+      // Que diga en cuál estás y a cuál pasa: "Cambiar tema" a secas no
+      // contaba ni lo uno ni lo otro (comité del menú, 26/11/2026).
+      aria-label={dark ? "Tema oscuro: pasar a claro" : "Tema claro: pasar a oscuro"}
+      title={dark ? "Pasar a tema claro" : "Pasar a tema oscuro"}
       className="glass-chip grid size-9 place-items-center rounded-lg text-text-muted transition-colors hover:text-text"
     >
       {dark ? (

@@ -38,15 +38,18 @@ export const HERRAMIENTAS: GrupoHerramientas[] = [
     items: [
       {
         // Toldos y remolques en una sola web desde el 02/10/2026 (Iván): la
-        // de remolques del 4500 se retira y su puerto redirige aquí.
+        // de remolques del 4500 se retira y su puerto redirige aquí. Se llama
+        // ACOPLA desde el 26/11/2026; antes, "Planteamientos TGM".
         id: "planteamientos-tgm",
-        nombre: "Planteamientos TGM",
+        nombre: "ACOPLA",
         descripcion: "Cálculo, despiece y planteamiento de toldos y remolques.",
         url: "http://192.168.0.90:4400/",
       },
       {
+        // "Asignación de Materiales" desde el 26/11/2026: "reservar" era
+        // asignar (CPRMOMaterial), y así la llama el equipo.
         id: "reservar-materiales",
-        nombre: "Reservar materiales",
+        nombre: "Asignación de Materiales",
         descripcion: "Apartar el material de una OF en RPS.",
         url: "http://192.168.0.90:4200/",
       },
@@ -57,7 +60,7 @@ export const HERRAMIENTAS: GrupoHerramientas[] = [
     items: [
       {
         id: "historial-pedidos",
-        nombre: "Pedidos hechos",
+        nombre: "Histórico Remolques y Puertas",
         // No es lo mismo que la pestaña Historial de aquí: esa busca un pedido
         // por su código, su cliente o su fecha. Esta busca por MEDIDAS y
         // características, que es la pregunta de "¿cómo resolvimos uno así?".

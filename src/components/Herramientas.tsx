@@ -90,6 +90,17 @@ export function Herramientas({
   // admite setState dentro de un efecto).
   if (!open && cambiando) setCambiando(false);
   const listas = cuantasDisponibles();
+  const esSupervisor = roles.includes("supervisor");
+  const esDireccion = roles.includes("direccion");
+  const hayAdministracion = esSupervisor || esDireccion || !!verComoDireccion;
+  /** Las secciones de quien trabaja en varias (Manuel); vacío para el resto. */
+  const misSecciones: SeccionId[] = yo.tambienEn?.length
+    ? [yo.seccion ?? SECCION_POR_DEFECTO, ...yo.tambienEn]
+    : [];
+  const cambiarSeccion = (s: SeccionId) => {
+    onCambiarSeccion(s);
+    setOpen(false);
+  };
 
   return (
     // La píldora es el envoltorio y no el botón: con el reloj en marcha lleva
@@ -123,16 +134,18 @@ export function Herramientas({
           {yo.iniciales}
         </span>
         <span className="text-xs font-semibold text-text" title={`Lista de trabajo: ${SECCIONES[seccion].nombre}`}>{SECCIONES[seccion].nombreCorto}</span>
-        <svg viewBox="0 0 24 24" aria-hidden className="size-4" fill="currentColor">
-          <circle cx="5" cy="5" r="1.8" />
-          <circle cx="12" cy="5" r="1.8" />
-          <circle cx="19" cy="5" r="1.8" />
-          <circle cx="5" cy="12" r="1.8" />
-          <circle cx="12" cy="12" r="1.8" />
-          <circle cx="19" cy="12" r="1.8" />
-          <circle cx="5" cy="19" r="1.8" />
-          <circle cx="12" cy="19" r="1.8" />
-          <circle cx="19" cy="19" r="1.8" />
+        {/* Una flecha y no la rejilla de puntos (26/11/2026): la rejilla se
+            leía como "aplicaciones" y no como el menú de tu cuenta. Es la
+            misma flecha que lleva el menú de Producción. */}
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden
+          className={`size-3.5 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
 
@@ -161,7 +174,13 @@ export function Herramientas({
             <span className="min-w-0 flex-1">
               <span className="block truncate text-xs font-semibold text-text">{yo.nombre}</span>
               <span className="block text-[10px] leading-tight text-text-muted">
-                {SECCIONES[yo.seccion ?? SECCION_POR_DEFECTO].nombre}
+                {/* Dirección no tiene sección: antes caía en la de siempre y
+                    a Esteban le ponía "Oficina Técnica". */}
+                {yo.seccion
+                  ? SECCIONES[yo.seccion].nombre
+                  : roles.includes("direccion")
+                    ? "Dirección"
+                    : SECCIONES[SECCION_POR_DEFECTO].nombre}
               </span>
             </span>
             {loginActivo ? (
@@ -184,8 +203,6 @@ export function Herramientas({
               </button>
             )}
           </div>
-
-          {!cambiando && <ElegirColor miId={yo.id} actual={yo.color} />}
 
           {/* Con el login encendido no hay lista que desplegar: `cambiando`
               no puede encenderse de otra forma que el botón de arriba, que
@@ -224,39 +241,20 @@ export function Herramientas({
             </div>
           ))}
 
-          {/* QUÉ LISTA SE MIRA y el claro/oscuro, en una fila y sin rótulos.
-              Eran dos secciones con su título en mayúsculas para dos mandos, y
-              en un menú de ocho cosas eso es más rótulo que contenido. Lo que
-              decían no se pierde: el conmutador lleva su `aria-label` ("Qué
-              lista de trabajo se mira") y cada botón su `title`, y la línea de
-              arriba ya dice en qué sección estás.
-
-              La lista va PRIMERO y arriba porque no es "otra herramienta": es
-              de qué trabajo va todo lo que se está viendo.
-
-              El tema no cierra el menú al cambiarlo: se elige mirando, y
-              cerrando habría que volver a abrirlo para probar el otro. */}
-          {/* Los dos mandos están hechos para la CABECERA: 36 px de alto, que
-              es la altura de aquella barra. En un menú cuyas filas son texto a
-              12 px se quedaban flotando, y encima esta era la única banda del
-              menú sin una línea que la separase de lo de arriba. Con su línea
-              y su rótulo se lee como las demás, y los dos van juntos a la
-              izquierda en vez de empujados a los extremos. */}
-          <div className="mt-2 border-t border-border pt-2">
-            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-              Qué miras y cómo
-            </p>
-            <div className="flex items-center gap-2 px-2">
-              <SelectorSeccion
-                seccion={seccion}
-                onCambiar={(s) => {
-                  onCambiarSeccion(s);
-                  setOpen(false);
-                }}
-              />
-              <ThemeToggle />
+          {/* LA LISTA DE TRABAJO, solo para quien trabaja en varias secciones
+              (Manuel: Impresión y Diseño) y solo con las suyas. Al resto del
+              equipo no le hacía falta y ocupaba el sitio de lo diario (Iván,
+              26/11/2026); el selector completo vive en Administración. */}
+          {misSecciones.length > 1 && (
+            <div className="mt-2 border-t border-border pt-2">
+              <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                Lista de trabajo
+              </p>
+              <div className="px-2">
+                <SelectorSeccion seccion={seccion} solo={misSecciones} onCambiar={cambiarSeccion} />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* LAS OTRAS PÁGINAS. Sin el rótulo "Otras herramientas" encima:
               con la cabecera ya separada por su línea, lo único que queda
@@ -345,7 +343,11 @@ export function Herramientas({
               título ya dice qué es, y lo único que se pregunta al verlo es de
               cuándo es lo último. */}
           <div className="mt-2 border-t border-border pt-2">
+            <p className="mb-0.5 px-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+              En esta web
+            </p>
             <button
+              type="button"
               onClick={() => {
                 onVerGuiaRevision();
                 setOpen(false);
@@ -367,26 +369,6 @@ export function Herramientas({
               Impresoras
             </button>
 
-            {/* La pantalla de Producción, para mirarla sin
-                cambiar de cuenta (Iván, 16/11/2026). Solo Dirección: al resto
-                del equipo no le hace falta y alargaría el menú. En pestaña
-                nueva, porque esa pantalla no tiene vuelta al tablero. */}
-            {roles.includes("direccion") && (
-              <a
-                href="/produccion"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setOpen(false)}
-                title="La pantalla que ve Producción."
-                className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text hover:bg-surface-2"
-              >
-                Vista de Producción
-                <svg viewBox="0 0 24 24" aria-hidden className="size-3 shrink-0 text-text-muted" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M7 17 17 7M9 7h8v8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </a>
-            )}
-
             {ULTIMA && (
               <button
                 onClick={() => {
@@ -406,35 +388,126 @@ export function Herramientas({
             )}
           </div>
 
-          {/* EL PIN OLVIDADO, LO ÚLTIMO Y PLEGADO. Estaba arriba del todo y
-              abría con los doce nombres a la vista: lo primero que veía un
-              supervisor al abrir las herramientas era una lista de gente, por
-              delante de las novedades y de los enlaces que sí se usan a
-              diario. Resetear un PIN es de un par de veces al año.
+          {/* APARIENCIA, plegada: el tema y el color se tocan muy de vez en
+              cuando. Los once colores estaban arriba del todo y empujaban
+              hacia abajo lo que se usa cada día (comité 26/11/2026). */}
+          <Plegable titulo="Apariencia" clave="apariencia">
+            <div className="flex items-center justify-between gap-2 px-2 pb-1">
+              <span className="text-xs font-semibold text-text">Tema</span>
+              <ThemeToggle />
+            </div>
+            <ElegirColor miId={yo.id} actual={yo.color} />
+          </Plegable>
 
-              Solo un supervisor y solo con el login encendido: apagado no hay
-              PIN que resetear, y esconderlo aquí es solo para no confundir —
-              la protección de verdad la pone el servidor, que en
-              `PATCH /api/personas` exige el rol `supervisor` pase lo que pase
-              con este `if`. */}
-          {loginActivo && roles.includes("supervisor") && <ResetPin />}
-          {verComoDireccion && (
-            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-text hover:bg-surface-2">
-              <span>
-                <span className="block font-semibold">Ver como Dirección</span>
-                <span className="block text-[11px] text-text-muted">La web sin botones de escribir, como la ven Carlos y Esteban</span>
-              </span>
-              <input
-                type="checkbox"
-                checked={verComoDireccion.activo}
-                onChange={(e) => verComoDireccion.onCambiar(e.target.checked)}
-                className="size-4 accent-brand-500"
-              />
-            </label>
+          {/* ADMINISTRACIÓN, lo último y plegado, y solo para quien tenga
+              algo dentro: supervisores (Ángel, Iván) y Dirección. Junta lo que
+              casi nadie usa: mirar cualquier lista, la pantalla de Producción,
+              ver la web como Dirección y el PIN olvidado. */}
+          {hayAdministracion && (
+            <Plegable titulo="Administración" clave="administracion">
+              {(esSupervisor || esDireccion) && (
+                <div className="px-2 pb-1.5">
+                  <p className="mb-1 text-[11px] font-semibold text-text">Ver la lista de</p>
+                  <SelectorSeccion seccion={seccion} onCambiar={cambiarSeccion} />
+                </div>
+              )}
+
+              {/* La pantalla de Producción, para mirarla sin
+                  cambiar de cuenta (Iván, 16/11/2026). Solo Dirección: al resto
+                  del equipo no le hace falta y alargaría el menú. En pestaña
+                  nueva, porque esa pantalla no tiene vuelta al tablero. */}
+              {esDireccion && (
+                <a
+                  href="/produccion"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setOpen(false)}
+                  title="La pantalla que ve Producción."
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-text hover:bg-surface-2"
+                >
+                  Vista de Producción
+                  <svg viewBox="0 0 24 24" aria-hidden className="size-3 shrink-0 text-text-muted" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M7 17 17 7M9 7h8v8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </a>
+              )}
+
+
+              {verComoDireccion && (
+                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-text hover:bg-surface-2">
+                  <span>
+                    <span className="block font-semibold">Ver como Dirección</span>
+                    <span className="block text-[11px] text-text-muted">La web sin botones de escribir, como la ve Dirección</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={verComoDireccion.activo}
+                    onChange={(e) => verComoDireccion.onCambiar(e.target.checked)}
+                    className="size-4 accent-brand-500"
+                  />
+                </label>
+              )}
+
+              {/* El PIN olvidado, plegado dentro: resetear un PIN es de un par
+                  de veces al año. Solo un supervisor y con el login encendido;
+                  la protección de verdad la pone el servidor, que en
+                  `PATCH /api/personas` exige el rol `supervisor`. */}
+              {loginActivo && esSupervisor && <ResetPin />}
+            </Plegable>
           )}
         </>
       )}
       </div>
+    </div>
+  );
+}
+
+/** Un bloque del menú que se pliega, con la cabecera como los rótulos del
+ *  resto. Recuerda si se dejó abierto: el menú se monta de cero cada vez que
+ *  se abre, y quien usa Administración a diario no tiene que desplegarla cada
+ *  vez. */
+function Plegable({ titulo, clave, children }: { titulo: string; clave: string; children: ReactNode }) {
+  const guardado = `coordina-menu-${clave}`;
+  const [abierto, setAbierto] = useState(() => {
+    try {
+      return localStorage.getItem(guardado) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const id = `menu-plegable-${clave}`;
+  return (
+    <div className="mt-2 border-t border-border pt-2">
+      <button
+        type="button"
+        onClick={() => {
+          const nuevo = !abierto;
+          setAbierto(nuevo);
+          try {
+            localStorage.setItem(guardado, nuevo ? "1" : "0");
+          } catch {}
+        }}
+        aria-expanded={abierto}
+        aria-controls={id}
+        className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-[10px] font-semibold uppercase tracking-wide text-text-muted hover:bg-surface-2 hover:text-text"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          className={`size-3 shrink-0 transition-transform motion-reduce:transition-none ${abierto ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {titulo}
+      </button>
+      {abierto && (
+        <div id={id} className="mt-1">
+          {children}
+        </div>
+      )}
     </div>
   );
 }

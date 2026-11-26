@@ -13,9 +13,11 @@ import { SECCIONES, type SeccionId } from "@/lib/secciones";
 // RPS (146) a UNA persona, así que con dos ids la mitad de su trabajo se
 // habría atribuido al equivocado.
 //
-// SE VE SIEMPRE Y LO USA CUALQUIERA. No hay permisos que mantener y mirar la
-// lista de al lado no deja hacer nada que no se pudiera hacer ya. Cada uno
-// arranca en la suya, así que quien no lo necesite ni se entera de que está.
+// Desde el 26/11/2026 ya no lo ve cualquiera (Iván): casi nadie lo usaba y
+// ocupaba el sitio de lo diario en el menú. Lo ve quien trabaja en varias
+// secciones (solo las suyas, `solo`) y, completo, Administración —supervisores
+// como Ángel y Dirección—. Sigue sin ser un permiso: mirar la lista de al lado
+// no deja hacer nada que no se pudiera hacer ya.
 //
 // Solo aparece si hay más de una sección: con una sola, un conmutador de un
 // botón es ruido que no conmuta nada.
@@ -23,11 +25,14 @@ import { SECCIONES, type SeccionId } from "@/lib/secciones";
 export function SelectorSeccion({
   seccion,
   onCambiar,
+  solo,
 }: {
   seccion: SeccionId;
   onCambiar: (s: SeccionId) => void;
+  /** Solo estas secciones (las de quien trabaja en varias). Sin él, todas. */
+  solo?: readonly SeccionId[];
 }) {
-  const todas = Object.values(SECCIONES);
+  const todas = Object.values(SECCIONES).filter((s) => !solo || solo.includes(s.id));
   if (todas.length < 2) return null;
 
   return (
