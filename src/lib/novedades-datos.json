@@ -1,14 +1,33 @@
 [
   {
     "id": "2026-11-26",
-    "hasta": "432616b",
+    "hasta": "b19ab8b",
     "cambios": [
+      {
+        "tipo": "arreglado",
+        "titulo": "Una nota «solo para» una sección ya no hace sonar la campana de toda la sección",
+        "detalle": "Para avisar a una sección, menciónala con @. Si la nota es solo para una persona, a esa persona sí le llega.",
+        "tanda": 2
+      },
       {
         "tipo": "mejor",
         "titulo": "En la línea de tiempo se ve de un vistazo si la entrega al cliente ya pasó",
         "apartado": "ot",
         "detalle": "La solicitada es el rombo del final; lo que cae después va en discontinua. Cuando una fecha no está en su sitio, lleva su nombre delante.",
         "tanda": 1
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "El menú de tu nombre es más corto: el tema y el color están en «Apariencia»",
+        "detalle": "Planteamientos se llama ahora ACOPLA, y Reservar materiales, Asignación de Materiales.",
+        "tanda": 2
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Los botones de la ficha del pedido, juntos a la izquierda y del mismo tamaño",
+        "apartado": "ot",
+        "detalle": "«Fichar» en bloque ya no se lleva las OF aprobadas ni las de otra persona, y «Pasar a revisión» pausa el reloj por ti.",
+        "tanda": 2
       }
     ]
   },
