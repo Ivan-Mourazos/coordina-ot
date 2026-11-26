@@ -83,6 +83,111 @@ export function repartirEtiquetas(pcts: number[], sep: number, margen = 0): numb
   return salida;
 }
 
+/** Coloca etiquetas de ancho conocido lo más cerca posible de su punto.
+ *
+ *  `repartirEtiquetas` trabaja en % con una separación fija y deja siempre un
+ *  margen en los extremos: en una columna ancha eso despegaba la primera y la
+ *  última fecha 35-40 px de su punto, y empujaba a la siguiente a un sitio
+ *  donde no había nada. Aquí cada texto mide lo que mide (en px) y se coloca
+ *  CENTRADO sobre su punto si cabe; si no, lo justo para no salirse de la caja
+ *  —así la primera queda alineada al borde izquierdo y la última al derecho— o
+ *  para no pisar a la de al lado.
+ *
+ *  `x` es el centro deseado y `ancho` el de la caja, en px. Devuelve el borde
+ *  IZQUIERDO de cada etiqueta, en el orden de entrada. */
+export function repartirEtiquetasPx(
+  items: { x: number; w: number }[],
+  ancho: number,
+  hueco = 8,
+): number[] {
+  if (items.length === 0) return [];
+  const orden = items.map((it, i) => ({ ...it, i })).sort((a, b) => a.x - b.x);
+  const izq = orden.map((o) => Math.max(0, Math.min(ancho - o.w, o.x - o.w / 2)));
+  for (let k = 1; k < orden.length; k++) {
+    izq[k] = Math.max(izq[k], izq[k - 1] + orden[k - 1].w + hueco);
+  }
+  const ult = orden.length - 1;
+  if (izq[ult] + orden[ult].w > ancho) {
+    izq[ult] = ancho - orden[ult].w;
+    for (let k = ult - 1; k >= 0; k--) {
+      izq[k] = Math.max(0, Math.min(izq[k], izq[k + 1] - orden[k].w - hueco));
+    }
+  }
+  const salida = new Array<number>(items.length);
+  orden.forEach((o, k) => (salida[o.i] = izq[k]));
+  return salida;
+}
+
+/** Orden en que se leen los hitos cuando las fechas están bien puestas. */
+const ORDEN_NATURAL: HitoLinea["clave"][] = ["creacion", "planificacion", "fabricacion", "solicitada"];
+
+/** Nombre corto para cuando una fecha no está donde se espera. */
+export const ETIQUETA_CORTA: Record<HitoLinea["clave"], string> = {
+  creacion: "Lleg.",
+  planificacion: "Plan.",
+  fabricacion: "Fab.",
+  solicitada: "Solic.",
+};
+
+/** Hitos que NO caen en su sitio de siempre.
+ *
+ *  La fila de Pendientes no repite los nombres —viven una vez en la cabecera—
+ *  y eso funciona mientras el orden es el de siempre. Cuando RPS trae la
+ *  solicitada antes de la planificada, o la fabricación después de la
+ *  solicitada, la cuarta fecha ya no es la solicitada y no hay forma de saber
+ *  cuál es cuál (30/10 · 23/11 · 26/11 · 14/12: el 23/11 era la entrega). Esos,
+ *  y solo esos, llevan nombre corto delante. Dos fechas del mismo día no
+ *  cuentan como desorden. */
+export function fueraDeOrden(hitos: HitoLinea[]): Set<HitoLinea["clave"]> {
+  const esperado = ORDEN_NATURAL.filter((c) => hitos.some((h) => h.clave === c));
+  const real = [...hitos]
+    .sort((a, b) => a.iso.localeCompare(b.iso) || ORDEN_NATURAL.indexOf(a.clave) - ORDEN_NATURAL.indexOf(b.clave))
+    .map((h) => h.clave);
+  return new Set(real.filter((c, i) => esperado[i] !== c));
+}
+
+/** Hitos que caen el mismo día, juntos: un solo texto en vez de dos, porque el
+ *  segundo acababa empujado a un sitio de la línea donde no había ningún
+ *  punto. El primero de cada grupo es el que manda (la referencia, si está). */
+export function agruparMismoDia(hitos: HitoLinea[]): { iso: string; pct: number; hitos: HitoLinea[] }[] {
+  const grupos: { iso: string; pct: number; hitos: HitoLinea[] }[] = [];
+  for (const h of hitos) {
+    const g = grupos.find((x) => x.iso === h.iso);
+    if (g) {
+      if (h.referencia) g.hitos.unshift(h);
+      else g.hitos.push(h);
+    } else grupos.push({ iso: h.iso, pct: h.pct, hitos: [h] });
+  }
+  return grupos;
+}
+
+/** Dónde termina la línea CONTINUA: en la solicitada.
+ *
+ *  La solicitada es el día en que el cliente quiere el producto instalado, así
+ *  que con las fechas bien puestas es la última (Iván, 26/11/2026). Lo que cae
+ *  después —fabricar más tarde, o una planificada posterior a la entrega— se
+ *  pinta en discontinua: es lo que no debería pasar. La escala sigue siendo la
+ *  real; solo cambia el trazo. */
+export function pctSolicitada(hitos: HitoLinea[]): number {
+  return hitos.find((h) => h.clave === "solicitada")?.pct ?? 100;
+}
+
+/** Parte un trozo de línea [desde, hasta] en lo que va antes de la solicitada
+ *  (continuo) y lo que va después (discontinuo). Cualquiera de los dos puede
+ *  faltar. */
+export function partirEnSolicitada(
+  desde: number,
+  hasta: number,
+  corte: number,
+): { continuo?: [number, number]; discontinuo?: [number, number] } {
+  const a = Math.min(hasta, corte);
+  const b = Math.max(desde, corte);
+  return {
+    ...(a > desde ? { continuo: [desde, a] as [number, number] } : {}),
+    ...(hasta > b ? { discontinuo: [b, hasta] as [number, number] } : {}),
+  };
+}
+
 /** Reparte las tres fechas a escala real sobre una línea de 0 a 100.
  *
  *  A escala y no a intervalos iguales: si la fabricación cae pegada a la
@@ -262,6 +367,19 @@ export interface Urgencia {
   enPlazo: boolean;
   /** La entrega al cliente ya se incumplió. */
   vencido: boolean;
+  /** Color del tramo actual y de la raya de hoy.
+   *
+   *  Manda el plazo de OT (Iván, 26/11/2026): con la entrega vencida pero la
+   *  planificada aún por llegar, la línea sigue en verde. Antes la barra se
+   *  pintaba morada mientras la planificada y el punto de hoy iban en verde
+   *  —"vas a tiempo" y "está incumplido" en la misma fila—. El morado solo
+   *  tiñe la línea cuando OT también va tarde; la entrega pasada se ve en la
+   *  propia solicitada (ver `colorSolicitada`). */
+  colorTramo: string | undefined;
+  /** Color de la solicitada: morado si ya pasó, `undefined` (el del texto) si
+   *  no. Sin fecha de planteo no se colorea: la entrega en esos partes viene
+   *  mal más veces que bien y no se afirma nada contra ella. */
+  colorSolicitada: string | undefined;
 }
 
 /** En qué punto de la escalada está el pedido HOY.
@@ -323,5 +441,7 @@ export function urgenciaRecorrido(
     esHoyLaPlanificada,
     enPlazo,
     vencido,
+    colorTramo: actual ? (vencido && !enPlazo ? TRAMO.fuera : actual.color) : undefined,
+    colorSolicitada: vencido && !sinPlanificar ? TRAMO.fuera : undefined,
   };
 }

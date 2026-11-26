@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   TRAMO,
+  agruparMismoDia,
+  fueraDeOrden,
   lineaTiempo,
+  partirEnSolicitada,
+  pctSolicitada,
   repartirEtiquetas,
+  repartirEtiquetasPx,
   tramosRecorrido,
   urgenciaRecorrido,
 } from "../linea-tiempo";
@@ -347,5 +352,117 @@ describe("urgenciaRecorrido", () => {
     expect(u.color).toBeUndefined();
     expect(u.tramos).toEqual([]);
     expect(u.actual).toBeNull();
+  });
+});
+
+// Casos de la captura de Pendientes del 26/11/2026.
+const conFab = (c: string, pl: string, fab: string | undefined, sol: string) => ({
+  fechaCreacion: c,
+  fechaPlanificacion: pl,
+  ...(fab ? { fechaFabricacion: fab } : {}),
+  fechaEntrega: sol,
+});
+const HOY = "2026-11-26";
+
+describe("urgenciaRecorrido: manda el plazo de OT (Iván, 26/11/2026)", () => {
+  it("entrega vencida con la planificada HOY: tramo verde, solicitada morada", () => {
+    const ped = conFab("2026-10-30", "2026-11-26", "2026-12-14", "2026-11-23");
+    const u = urgenciaRecorrido(lineaTiempo(ped, HOY), ped, HOY);
+    expect(u.vencido).toBe(true);
+    expect(u.enPlazo).toBe(true);
+    expect(u.color).toBe(TRAMO.holgado);
+    expect(u.colorTramo).toBe(TRAMO.holgado);
+    expect(u.colorSolicitada).toBe(TRAMO.fuera);
+  });
+
+  it("OT tarde Y entrega vencida: el tramo sí va en morado", () => {
+    const ped = conFab("2026-08-19", "2026-09-14", "2026-09-22", "2026-09-25");
+    const u = urgenciaRecorrido(lineaTiempo(ped, HOY), ped, HOY);
+    expect(u.colorTramo).toBe(TRAMO.fuera);
+    expect(u.colorSolicitada).toBe(TRAMO.fuera);
+  });
+
+  it("en plazo y con la entrega por llegar, la solicitada no se colorea", () => {
+    const ped = conFab("2026-11-25", "2026-11-27", "2026-12-01", "2026-12-10");
+    const u = urgenciaRecorrido(lineaTiempo(ped, HOY), ped, HOY);
+    expect(u.colorTramo).toBe(TRAMO.holgado);
+    expect(u.colorSolicitada).toBeUndefined();
+  });
+
+  it("sin fecha de planteo no se afirma nada contra la entrega, aunque haya pasado", () => {
+    const ped = { ...conFab("2026-08-07", "2026-08-13", undefined, "2026-08-13"), planificacionEstimada: true };
+    const u = urgenciaRecorrido(lineaTiempo(ped, "2026-08-20"), ped, "2026-08-20");
+    expect(u.colorSolicitada).toBeUndefined();
+    expect(u.colorTramo).toBeUndefined();
+  });
+});
+
+describe("fueraDeOrden", () => {
+  const claves = (ped: ReturnType<typeof conFab>) => fueraDeOrden(lineaTiempo(ped, HOY).hitos);
+
+  it("con las fechas bien puestas no marca ninguna", () => {
+    expect(claves(conFab("2026-11-25", "2026-11-27", "2026-12-01", "2026-12-10")).size).toBe(0);
+  });
+
+  it("solicitada antes que la planificada: se marcan las que cambian de sitio", () => {
+    // 30/10 · 23/11 · 26/11 · 14/12 — el 23/11 era la entrega.
+    const raros = claves(conFab("2026-10-30", "2026-11-26", "2026-12-14", "2026-11-23"));
+    expect(raros.has("solicitada")).toBe(true);
+    expect(raros.has("fabricacion")).toBe(true);
+    expect(raros.has("creacion")).toBe(false);
+  });
+
+  it("dos hitos el mismo día no cuentan como desorden", () => {
+    expect(claves(conFab("2026-11-20", "2026-11-27", "2026-11-27", "2026-12-10")).size).toBe(0);
+  });
+});
+
+describe("agruparMismoDia", () => {
+  it("junta planificación y fabricación del mismo día, con la que manda delante", () => {
+    const { hitos } = lineaTiempo(conFab("2026-11-20", "2026-11-27", "2026-11-27", "2026-12-10"), HOY);
+    const g = agruparMismoDia(hitos);
+    expect(g).toHaveLength(3);
+    expect(g[1].hitos.map((h) => h.clave)).toEqual(["planificacion", "fabricacion"]);
+  });
+});
+
+describe("solicitada como meta", () => {
+  it("pctSolicitada da dónde acaba la línea continua", () => {
+    const { hitos } = lineaTiempo(conFab("2026-11-01", "2026-11-11", "2026-12-01", "2026-11-21"), HOY);
+    expect(pctSolicitada(hitos)).toBeCloseTo(66.67, 1);
+  });
+
+  it("partirEnSolicitada separa lo de antes y lo de después", () => {
+    expect(partirEnSolicitada(0, 100, 60)).toEqual({ continuo: [0, 60], discontinuo: [60, 100] });
+    expect(partirEnSolicitada(0, 40, 60)).toEqual({ continuo: [0, 40] });
+    expect(partirEnSolicitada(70, 100, 60)).toEqual({ discontinuo: [70, 100] });
+    expect(partirEnSolicitada(0, 100, 100)).toEqual({ continuo: [0, 100] });
+  });
+});
+
+describe("repartirEtiquetasPx", () => {
+  it("centra cada texto sobre su punto cuando cabe", () => {
+    expect(repartirEtiquetasPx([{ x: 100, w: 30 }], 500)).toEqual([85]);
+  });
+
+  it("pega la primera al borde izquierdo y la última al derecho, sin margen", () => {
+    expect(repartirEtiquetasPx([{ x: 0, w: 30 }, { x: 500, w: 30 }], 500)).toEqual([0, 470]);
+  });
+
+  it("aparta lo justo dos textos que se pisarían", () => {
+    const [a, b] = repartirEtiquetasPx([{ x: 100, w: 30 }, { x: 110, w: 30 }], 500, 8);
+    expect(a).toBe(85);
+    expect(b).toBe(85 + 30 + 8);
+  });
+
+  it("recoge hacia atrás si el empuje se sale por la derecha", () => {
+    const r = repartirEtiquetasPx([{ x: 490, w: 30 }, { x: 495, w: 30 }, { x: 500, w: 30 }], 500, 8);
+    expect(r[2]).toBe(470);
+    expect(r[1]).toBe(470 - 38);
+    expect(r[0]).toBe(470 - 76);
+  });
+
+  it("devuelve en el orden de entrada", () => {
+    expect(repartirEtiquetasPx([{ x: 400, w: 20 }, { x: 50, w: 20 }], 500)).toEqual([390, 40]);
   });
 });

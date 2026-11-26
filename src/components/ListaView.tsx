@@ -2,7 +2,7 @@
 
 import { PedidoCodigo } from "./PedidoCodigo";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { EstadoMaterial, Operario, Pedido } from "@/lib/types";
 import {
   comprasPendientes,
@@ -16,7 +16,18 @@ import {
 import { ESTADO, fmtMin, fmtMinEnteros, PRIORIDAD, ROL } from "@/lib/estado";
 import { FASES, faseDePedido } from "@/lib/fases-tablero";
 import { estadoDePedido, type TramoEstado } from "@/lib/frase-estado";
-import { TRAMO, lineaTiempo, repartirEtiquetas, urgenciaRecorrido } from "@/lib/linea-tiempo";
+import {
+  ETIQUETA_CORTA,
+  TRAMO,
+  agruparMismoDia,
+  fueraDeOrden,
+  lineaTiempo,
+  partirEnSolicitada,
+  pctSolicitada,
+  repartirEtiquetasPx,
+  urgenciaRecorrido,
+} from "@/lib/linea-tiempo";
+import { anchoTexto, useAncho } from "@/lib/medir-texto";
 import type { OrdenLista } from "@/lib/filtros";
 import { FamiliaTag } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
@@ -82,7 +93,7 @@ import { IconoAviso } from "./Iconos";
  *  arrastrar la barra para verlo, y nadie lo hace: se ve cortado igual. 440
  *  empuja ese umbral por debajo de ~900 px de contenido, fuera del rango de
  *  cualquier ventana real, sin tocar la separación mínima entre fechas: baja
- *  con el mismo suelo (ver `RECORRIDO_PX`), así que a 440 px las cuatro
+ *  con el mismo suelo (ver `RECORRIDO_RESERVA_PX`), así que a 440 px las cuatro
  *  siguen sin pisarse.
  *
  *  Identidad y estado ya no van en %, sino con TOPE (28 rem y 15 rem), y el
@@ -118,47 +129,54 @@ const COLUMNAS_COMPACTAS =
 const COLUMNAS_SIN_MATERIAL =
   "grid grid-cols-[32px_minmax(220px,28rem)_minmax(170px,15rem)_minmax(440px,1fr)] items-center gap-x-3";
 
-/** `RECORRIDO_PX` repite ese mínimo como número, para la cuenta de separación
- *  de las fechas de aquí abajo: los dos tienen que decir lo mismo. */
-const RECORRIDO_PX = 440;
-
-/** Lo que se lleva el chip "+128d" con su hueco cuando el pedido va tarde. Se
- *  descuenta siempre, salga o no en esa fila: si la separación dependiera del
- *  chip, la misma fecha caería en un sitio distinto según la fila. */
+/** Hueco del chip "+128d" a la derecha de la línea. Se reserva SIEMPRE, salga o
+ *  no el chip: si no, la línea de las filas que van tarde era más corta que la
+ *  del resto y la misma fecha caía en otro sitio según la fila, así que las
+ *  escalas de dos filas seguidas no se podían comparar. */
 const CHIP_TARDE_PX = 42;
 
-/** Lo que ocupa "27/08" a 10 px, con aire para que dos seguidas no se toquen. */
-const ANCHO_FECHA_PX = 36;
+/** Ancho de reserva hasta que se mide la columna (primer pintado, servidor):
+ *  el suelo de la columna menos el hueco del chip. */
+const RECORRIDO_RESERVA_PX = 440 - CHIP_TARDE_PX - 6;
 
-/** Lo mismo en % del ancho de la línea, que es lo que entiende
- *  `repartirEtiquetas`: separación mínima entre centros y, a la mitad, lo que
- *  cada fecha sobresale por los extremos (van centradas sobre su hito). */
-const ANCHO_FECHA_PCT = (ANCHO_FECHA_PX / (RECORRIDO_PX - CHIP_TARDE_PX)) * 100;
+/** Aire entre dos fechas seguidas. */
+const HUECO_FECHAS_PX = 8;
 
 /** El recorrido del pedido en una fila: los hitos a escala con su fecha
- *  encima, y el punto de hoy moviéndose por encima.
+ *  encima, y la raya de hoy.
  *
  *  Sustituye a las columnas de fechas sueltas, no se suma a ellas. Con las
  *  fechas en columnas propias hacían falta tres colores para decir lo mismo
  *  —planificada en rojo, solicitada en rojo, barra en rojo— y la lista era un
- *  muro. Aquí las fechas son grises y lo único que grita es dónde está hoy.
+ *  muro. Aquí solo lleva color lo que dice algo de este pedido, ahora.
  *
- *  Los rótulos (Creación, Planificación…) NO se repiten por fila: el orden es
- *  el mismo en todas, así que viven una sola vez en la cabecera. */
+ *  Rediseño del 26/11/2026 (comité Claude + Codex + Gemini, decidido por Iván):
+ *    · Cada fecha va pegada a su punto (`repartirEtiquetasPx`, en px reales).
+ *      Antes la separación salía de un % fijo y en una columna ancha la
+ *      primera y la última se despegaban 35-40 px de su punto.
+ *    · La solicitada es la META —el día en que el cliente lo quiere
+ *      instalado—: rombo, fecha en negrita, y la línea continua acaba en ella.
+ *      Lo que cae después va en discontinua: con las fechas bien puestas no
+ *      debería haber nada.
+ *    · Los rótulos NO se repiten por fila (viven en la cabecera), salvo cuando
+ *      una fecha no está en su sitio de siempre: esa lleva nombre corto
+ *      ("Solic. 23/11"). Sin eso, en 30/10 · 23/11 · 26/11 · 14/12 no había
+ *      forma de saber que el 23/11 era la entrega.
+ *    · Dos hitos el mismo día, una sola fecha.
+ *    · Hoy es una raya, no un punto: no tapa el hito ni parte el tramo. */
 function Recorrido({ pedido, hoy, terminado = false }: { pedido: Pedido; hoy: string; terminado?: boolean }) {
+  const caja = useRef<HTMLDivElement>(null);
+  const ancho = useAncho(caja) ?? RECORRIDO_RESERVA_PX;
   const linea = lineaTiempo(pedido, hoy);
   const { hitos, hoyPct, hoyFuera, diasParaEntrega } = linea;
-  const etiquetas = repartirEtiquetas(
-    hitos.map((h) => h.pct),
-    ANCHO_FECHA_PCT,
-    ANCHO_FECHA_PCT / 2,
-  );
   // Dónde cae hoy en la escalada, y de qué color va. Lo decide
   // `urgenciaRecorrido`, que es lo mismo que usa la línea del detalle: cuando
   // cada una lo calculaba por su cuenta, el mismo pedido salía de un color en
   // la lista y de otro al abrirlo.
-  const { actual, color, sinPlanificar, diasTarde, esHoyLaPlanificada, vencido } =
-    urgenciaRecorrido(linea, pedido, hoy);
+  const u = urgenciaRecorrido(linea, pedido, hoy);
+  const { actual, color, sinPlanificar, diasTarde, esHoyLaPlanificada, vencido, enPlazo } = u;
+  const corte = pctSolicitada(hitos);
+  const raros = fueraDeOrden(hitos);
   // Con el año cuando el recorrido cruza de un año a otro.
   //
   // Sin él, un pedido creado el 02/12/2024 y planificado el 16/06/2027 pintaba
@@ -170,140 +188,158 @@ function Recorrido({ pedido, hoy, terminado = false }: { pedido: Pedido; hoy: st
   const aniosDistintos = new Set(hitos.map((h) => h.iso.slice(0, 4))).size > 1;
   const fmtHito = (iso: string) =>
     `${iso.slice(8)}/${iso.slice(5, 7)}${aniosDistintos ? `/${iso.slice(2, 4)}` : ""}`;
+
+  const fechas = agruparMismoDia(hitos).map((g) => {
+    const h = g.hitos[0];
+    const prefijo = raros.has(h.clave) && !h.referencia ? `${ETIQUETA_CORTA[h.clave]} ` : "";
+    const fuerte = h.referencia || h.clave === "solicitada";
+    const texto = prefijo + fmtHito(g.iso);
+    return { g, h, prefijo, fuerte, x: (g.pct / 100) * ancho, w: anchoTexto(texto, { peso: fuerte ? 700 : 400 }) };
+  });
+  const izq = repartirEtiquetasPx(fechas, ancho, HUECO_FECHAS_PX);
+  const cuanto = esHoyLaPlanificada
+    ? " (es hoy)"
+    : diasTarde < 0
+      ? ` (quedan ${-diasTarde} d)`
+      : ` (pasada hace ${diasTarde} d)`;
+  const fmtLargo = (iso: string) => iso.split("-").reverse().join("/");
+  // La raya de hoy se tiñe de morado solo cuando OT TAMBIÉN va tarde; con la
+  // entrega vencida y la planificada por llegar manda el plazo de OT.
+  const otYEntregaTarde = vencido && !enPlazo;
+
+  const trazo = (desde: number, hasta: number, fondo: string, clase: string) => {
+    const { continuo, discontinuo } = partirEnSolicitada(desde, hasta, corte);
+    return (
+      <>
+        {continuo && (
+          <div
+            className={`absolute top-[3px] h-0.5 rounded-full ${clase}`}
+            style={{ left: `${continuo[0]}%`, width: `${continuo[1] - continuo[0]}%`, background: fondo }}
+          />
+        )}
+        {discontinuo && (
+          <div
+            className={`absolute top-[3px] h-0.5 ${clase}`}
+            style={{
+              left: `${discontinuo[0]}%`,
+              width: `${discontinuo[1] - discontinuo[0]}%`,
+              background: `repeating-linear-gradient(90deg, ${fondo} 0 4px, transparent 4px 8px)`,
+            }}
+          />
+        )}
+      </>
+    );
+  };
+
   return (
     // `w-full` a secas: el ancho lo manda la COLUMNA (ver COLUMNAS_LISTA) y la
     // línea solo tiene que llenarla.
     <div className="flex w-full items-end gap-1.5 pb-0.5 pt-1">
-      <div className="min-w-0 flex-1">
-      <div className="relative h-3">
-        {/* A 10 px y no a 9: la fecha es lo único que hay que LEER de la línea
-            (el resto se mira), y con la columna ensanchada el sitio ya no lo
-            paga nadie. */}
-        {hitos.map((h, i) => {
-          // La PLANIFICADA destacada sobre las demás: de las cuatro fechas es
-          // la única que es una fecha límite para OT —el día en que esto
-          // debería estar planteado— y las otras tres son contexto.
-          //
-          // Y con color propio, porque es la que contesta la pregunta: verde
-          // mientras se llega (incluido el mismo día), y al pasarla cambia a lo
-          // que diga la escalada —naranja mientras el margen es de Producción,
-          // rojo cuando se come el suyo, morado cuando la entrega ya se
-          // incumplió—. Antes iba en negro y había que buscar el retraso en el
-          // chip del final.
-          // Se colorea el hito de REFERENCIA, sea cual sea: la planificada en
-          // los normales y la solicitada en los que no tienen fecha de planteo
-          // (ahí no se pinta hito de planificación, porque sería la misma fecha
-          // repetida). Así el color está siempre en el mismo sitio de la línea:
-          // la fecha que manda.
-          const colorHito = terminado ? "var(--text-muted)" : h.referencia ? color : undefined;
-          const cuanto = esHoyLaPlanificada
-            ? " (es hoy)"
-            : diasTarde < 0
-              ? ` (quedan ${-diasTarde} d)`
-              : ` (pasada hace ${diasTarde} d)`;
-          return (
-            <span
-              key={h.clave}
-              className={`absolute top-0 -translate-x-1/2 whitespace-nowrap text-[10px] leading-none ${
-                h.referencia ? "font-bold" : "text-text-muted"
-              }`}
-              style={{ left: `${etiquetas[i]}%`, color: colorHito }}
-              title={
-                !h.referencia
-                  ? `${h.etiqueta}: ${h.iso.split("-").reverse().join("/")}`
-                  : sinPlanificar
-                    ? `Solicitada: ${h.iso.split("-").reverse().join("/")} — este pedido no tiene fecha de planificación en RPS. Se enseña la entrega como referencia, pero sin medir retraso contra ella: no es la fecha en que hay que plantearlo.`
-                    : `Planificada: ${h.iso.split("-").reverse().join("/")} — el día en que debería estar planteado${cuanto}`
-              }
-            >
-              {fmtHito(h.iso)}
-            </span>
-          );
-        })}
-      </div>
+      <div ref={caja} className="min-w-0 flex-1">
+        <div className="relative h-3">
+          {/* A 10 px y no a 9: la fecha es lo único que hay que LEER de la
+              línea (el resto se mira). */}
+          {fechas.map(({ g, h, prefijo, fuerte }, i) => {
+            // La PLANIFICADA lleva el color de la escalada: es la fecha límite
+            // de OT. Verde mientras se llega (incluido el mismo día), y al
+            // pasarla lo que diga la escalada. La solicitada va en negrita
+            // —es la meta del pedido— y en morado si ya pasó. El resto, gris.
+            const colorFecha = terminado
+              ? "var(--text-muted)"
+              : h.referencia
+                ? color
+                : h.clave === "solicitada"
+                  ? (u.colorSolicitada ?? "var(--text)")
+                  : undefined;
+            return (
+              <span
+                key={g.iso}
+                className={`absolute top-0 whitespace-nowrap text-[10px] leading-none ${
+                  fuerte ? "font-bold" : "text-text-muted"
+                }`}
+                style={{ left: `${izq[i]}px`, color: colorFecha }}
+                title={
+                  !h.referencia
+                    ? g.hitos.map((x) => `${x.etiqueta}: ${fmtLargo(x.iso)}`).join(" · ")
+                    : sinPlanificar
+                      ? `Solicitada: ${fmtLargo(h.iso)} — este pedido no tiene fecha de planificación en RPS. Se enseña la entrega como referencia, pero sin medir retraso contra ella: no es la fecha en que hay que plantearlo.`
+                      : `Planificada: ${fmtLargo(h.iso)} — el día en que debería estar planteado${cuanto}`
+                }
+              >
+                {prefijo && <span className="font-semibold">{prefijo}</span>}
+                {fmtHito(g.iso)}
+              </span>
+            );
+          })}
+        </div>
 
-      <div className={`relative h-2 ${terminado ? "opacity-40" : ""}`}>
-        {/* El color dice EN QUÉ TRAMO va el pedido, no cuánto lleva: verde
-            hasta la planificación (hay margen), naranja mientras el trabajo es
-            de OT, rojo en el último tramo. Cortes secos, no degradado: el
-            pedido cambia de tramo un día concreto y verlo saltar ES el dato.
-
-            Lo ya recorrido va a todo color y lo que queda apagado, así se ven
-            a la vez el plan entero y por dónde se va. */}
-        <div className="absolute inset-x-0 top-[3px] h-0.5 rounded-full bg-border-strong" />
-        {/* El día exacto de la planificada, el tramo VERDE se sigue pintando.
-            Antes ese día la barra se quedaba entera en gris y todo el aviso lo
-            llevaba el punto: la fila se leía como "este pedido no tiene fecha",
-            que es lo que significa el gris en todas las demás, justo el día en
-            que hay que mirarlo. Sigue estando a tiempo, así que va en verde
-            como el día anterior; lo que cambia es el punto, que ese día también
-            se pinta de verde en vez de negro. */}
-        {actual && (
-          <div
-            className="absolute top-[3px] h-0.5 rounded-full"
-            style={{
-              left: `${actual.desde}%`,
-              width: `${actual.hasta - actual.desde}%`,
-              background: vencido ? TRAMO.fuera : actual.color,
-            }}
-          />
-        )}
-        {hitos.map((h) => (
+        <div className={`relative h-2 ${terminado ? "opacity-40" : ""}`}>
+          {/* La línea de fondo, continua hasta la solicitada y discontinua
+              después. Encima, el tramo en el que va el pedido HOY, del color de
+              la escalada (solo ese: los otros los recorre todo pedido que
+              llega a tiempo). Cortes secos, no degradado: el pedido cambia de
+              tramo un día concreto y verlo saltar ES el dato. */}
+          {trazo(0, 100, "var(--border-strong)", "")}
+          {actual && u.colorTramo && trazo(actual.desde, actual.hasta, u.colorTramo, "")}
+          {hitos.map((h) =>
+            h.clave === "solicitada" ? (
+              <span
+                key={h.clave}
+                className="absolute top-0 size-2 -translate-x-1/2 rotate-45 ring-[1.5px] ring-surface"
+                style={{
+                  left: `${h.pct}%`,
+                  background: terminado ? "var(--progress-pending)" : (u.colorSolicitada ?? "var(--text)"),
+                }}
+              />
+            ) : (
+              <span
+                key={h.clave}
+                className="absolute top-0 size-2 -translate-x-1/2 rounded-full bg-progress-pending"
+                style={{ left: `${h.pct}%`, background: h.referencia && !terminado ? color : undefined }}
+              />
+            ),
+          )}
+          {/* Hoy: el único que se mueve. Una raya y no un punto, para que no
+              tape el hito con el que coincide ni parta el tramo en dos. */}
           <span
-            key={h.clave}
-            className="absolute top-0 size-2 -translate-x-1/2 rounded-full bg-progress-pending"
-            style={{ left: `${h.pct}%` }}
+            className="absolute -top-0.5 h-3 w-0.5 -translate-x-1/2 rounded-full ring-[1.5px] ring-surface"
+            style={{
+              left: `${hoyPct}%`,
+              background: otYEntregaTarde ? TRAMO.fuera : "var(--hoy)",
+              opacity: hoyFuera && !otYEntregaTarde ? 0.5 : 1,
+            }}
+            title={
+              esHoyLaPlanificada
+                ? "Hoy es el día planificado: toca plantearlo hoy y aún se va a tiempo"
+                : vencido
+                  ? `Hoy · ${-diasParaEntrega} d pasada la solicitada`
+                  : `Hoy · quedan ${diasParaEntrega} d para la solicitada`
+            }
           />
-        ))}
-        {/* Hoy: el único que se mueve. Sin color propio —el tramo ya lo dice—
-            salvo cuando se sale de la línea, que ahí el morado es la señal.
-            Más grande que los hitos y con anillo del fondo para despegarlo. */}
-        <span
-          className="absolute top-[-1px] size-2.5 -translate-x-1/2 rounded-full ring-2 ring-surface"
-          style={{
-            left: `${hoyPct}%`,
-            background: esHoyLaPlanificada
-              ? TRAMO.holgado
-              : vencido
-                ? TRAMO.fuera
-                : "var(--hoy)",
-            opacity: hoyFuera && !vencido ? 0.5 : 1,
-          }}
-          title={
-            esHoyLaPlanificada
-              ? "Hoy es el día planificado: toca plantearlo hoy y aún se va a tiempo"
-              : vencido
-                ? `Hoy · fuera de fecha, ${-diasParaEntrega} d pasada la solicitada`
-                : `Hoy · quedan ${diasParaEntrega} d`
-          }
-        />
         </div>
       </div>
 
-      {/* Cuánto se ha pasado OT de SU fecha. El número no cabe en la línea
-          —hoy se queda pegado al extremo cuando se sale— así que se dice
-          aparte. El morado avisa además de que la entrega al cliente ya no se
-          cumple: está fuera de la escalada verde-naranja-rojo a propósito,
-          porque no es "va muy justo", es que la fecha ya se incumplió. */}
-      {/* Sin fecha de planteo no hay retraso que anunciar: el chip contaría
-          días pasados de una fecha que no es la que hay que cumplir. */}
-      {diasTarde > 0 && !sinPlanificar && (
-        <span
-          className="shrink-0 rounded px-1 py-px text-[10px] font-bold leading-none"
-          // El texto va del color del FONDO de la app, no blanco fijo: sobre el
-          // ámbar claro del tema oscuro, un "+3d" en blanco se leía a 2:1. Así
-          // el chip contrasta solo en los dos temas, sin una segunda pareja de
-          // colores que mantener.
-          style={{ background: vencido ? TRAMO.fuera : TRAMO.trabajo, color: "var(--surface)" }}
-          title={
-            vencido
-              ? `${diasTarde} días pasada la planificada — y la entrega solicitada era hace ${-diasParaEntrega}`
-              : `${diasTarde} días pasada la fecha planificada para plantearlo`
-          }
-        >
-          +{diasTarde}d
-        </span>
-      )}
+      {/* Cuánto se ha pasado OT de SU fecha. El número no cabe en la línea, así
+          que se dice aparte, en un hueco que se reserva siempre. Morado cuando
+          además la entrega al cliente ya pasó. Sin fecha de planteo no hay
+          retraso que anunciar. */}
+      <div className="flex shrink-0 justify-end" style={{ width: CHIP_TARDE_PX }}>
+        {diasTarde > 0 && !sinPlanificar && (
+          <span
+            className="rounded px-1 py-px text-[10px] font-bold leading-none"
+            // El texto va del color del FONDO de la app, no blanco fijo: sobre
+            // el ámbar claro del tema oscuro, un "+3d" en blanco se leía a 2:1.
+            style={{ background: vencido ? TRAMO.fuera : TRAMO.trabajo, color: "var(--surface)" }}
+            title={
+              vencido
+                ? `${diasTarde} días pasada la planificada — y la entrega solicitada era hace ${-diasParaEntrega}`
+                : `${diasTarde} días pasada la fecha planificada para plantearlo`
+            }
+          >
+            +{diasTarde}d
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -470,8 +506,12 @@ export function ListaView({
       <span>
         <span className="block">Recorrido</span>
         <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-text-muted">
-          creación · <span className="font-semibold text-text">planificada</span> ·
-          fabricación · solicitada
+          {/* Los mismos nombres que la ficha del pedido (antes aquí era
+              "creación" y allí "Llegada"), y la forma de la solicitada y de
+              hoy, que en la fila no llevan rótulo. */}
+          llegada · <span className="font-semibold text-text">planificada</span> ·
+          fabricación · <span className="font-semibold text-text">◆ solicitada</span> ·{" "}
+          <span aria-hidden className="inline-block h-2.5 w-0.5 rounded-full bg-[var(--hoy)] align-[-1px]" /> hoy
         </span>
       </span>
     </>
