@@ -21,6 +21,8 @@
 // hacer falta, y una lista que nadie ha usado se cierra mal. Aquí solo está el
 // formato con el que viaja.
 
+import { leerAnulacion } from "./anulacion";
+
 /** Una devolución: por qué vuelve y qué hay que corregir. */
 export interface Devolucion {
   /** Ids de `causa_devolucion`. Vacío = devolución sin causas, que es lo que
@@ -94,6 +96,57 @@ export function partirNota(nota: string): { fallos: string[]; texto: string } {
     else resto.push(l);
   }
   return { fallos, texto: resto.join("\n").trim() };
+}
+
+/** Un punto a corregir tal como lo lee el autor: primero QUÉ hacer y, si salió
+ *  de la guía, debajo y en pequeño el PASO al que pertenece. */
+export interface PuntoCorreccion {
+  que: string;
+  paso?: string;
+}
+
+/** La nota partida para el AUTOR (27/11/2026, comité de la vista del autor).
+ *
+ *  La guía escribe «✗ Las medidas — Faltan 3 cm»: el nombre del paso delante y
+ *  lo que hay que hacer al final, que es lo que el autor busca. Aquí se da la
+ *  vuelta: `que` = lo escrito en la ✗, `paso` = el nombre del paso. Una ✗ sin
+ *  texto (las de antes de que fuera obligatorio) se queda con el paso como
+ *  `que`.
+ *
+ *  `extra` son las «Indicaciones extra»: texto, no casillas. Una nota sin
+ *  ninguna ✗ (escrita a mano, o de antes de la guía) no tiene extra: cada
+ *  línea suya ES un punto a corregir. */
+export function puntosDeCorreccion(nota: string): { puntos: PuntoCorreccion[]; extra: string } {
+  const { fallos, texto } = partirNota(nota);
+  if (fallos.length === 0) return { puntos: lineasDe(nota).map((que) => ({ que })), extra: "" };
+  const puntos = fallos.map((f) => {
+    const i = f.indexOf(" — ");
+    if (i < 0) return { que: f };
+    const que = f.slice(i + 3).trim();
+    const paso = f.slice(0, i).trim();
+    return que ? { que, paso } : { que: paso };
+  });
+  return { puntos, extra: texto };
+}
+
+/** En qué punto está la corrección de una OF devuelta, para el autor:
+ *
+ *  · `a_corregir`: devuelta, o ya retomada (en curso) — la nota manda.
+ *  · `enviada`: vuelve a estar en revisión — la nota se pliega en gris.
+ *  · `null`: no hay corrección que enseñar (sin nota, aprobada, anulada, o el
+ *    campo lleva el motivo de una anulación: los dos usos lo comparten, ver
+ *    `anulacion.ts`, y una OF restaurada lo conserva).
+ *
+ *  La nota no se borra al retomar ni al reenviar: sigue en `observacion` hasta
+ *  la siguiente devolución, así que el estado es lo que dice cuál de las tres. */
+export function correccionDe(of: {
+  estado: string;
+  observacion?: string | null;
+}): "a_corregir" | "enviada" | null {
+  if (!of.observacion?.trim() || leerAnulacion(of.observacion)) return null;
+  if (of.estado === "devuelta" || of.estado === "en_curso" || of.estado === "pendiente") return "a_corregir";
+  if (of.estado === "por_revisar" || of.estado === "en_revision") return "enviada";
+  return null;
 }
 
 /** Las líneas con algo, sin la viñeta que se le ponga a mano («- », «• »,

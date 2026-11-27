@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePopover } from "@/lib/usePopover";
 import { BOTON_BLOQUE, BOTON_CIERRE, BOTON_NEUTRO, BOTON_PASAR_REVISION, TAMANO_BLOQUE } from "@/lib/botones";
-import type { EstadoOF, Operario, OF, OFFuera, Pedido, Rol } from "@/lib/types";
+import type { Operario, OF, OFFuera, Pedido, Rol } from "@/lib/types";
 import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
 import { ESTADO, ROL, etiquetaCantidad } from "@/lib/estado";
@@ -16,13 +16,13 @@ import { DetalleVenta } from "./DetalleVenta";
 import { DevolverInline } from "./DevolverInline";
 import { GuiaRevision } from "./GuiaRevision";
 import { bloqueosDeLaGuia, fallosDeLaGuia, guiaDeFamilias, type FalloGuia } from "@/lib/guia-revision";
-import { leerDevolucion } from "@/lib/devolucion";
+import { correccionDe, leerDevolucion } from "@/lib/devolucion";
 import { useMarcasRevision } from "@/lib/marcas-cliente";
 import { leerCausas, leerPasos, type CausaDevolucion, type PasoRevision } from "@/lib/causas-cliente";
 import { AnularInline } from "./AnularInline";
 import { CerrarEnRpsInline } from "./CerrarEnRpsInline";
 import { ReintentarGemelaInline } from "./ReintentarGemelaInline";
-import { NotaDevolucion } from "./NotaDevolucion";
+import { NotaDevolucion, puntosDeLaNota } from "./NotaDevolucion";
 import { FasesSinFinalizar } from "./FasesSinFinalizar";
 import { DocumentosPedido } from "./DocumentosPedido";
 import { NoConformidadesPedido } from "./NoConformidadesPedido";
@@ -76,10 +76,6 @@ import { PedirVisita } from "./PedirVisita";
  *  `aprobar_corregida` tiene además un botón de pedido ("Dar por corregidas
  *  las N") desde dos OF, pero se AÑADE al de cada fila, no lo sustituye: por
  *  eso no está aquí. */
-/** Estados en que la nota de la devolución ya está atendida. Solo la aprobada:
- *  mientras vuelve a revisión, el revisor la quiere delante para comprobar
- *  que se corrigió lo que pidió. */
-const NOTA_YA_CORREGIDA: ReadonlySet<EstadoOF> = new Set(["aprobada"]);
 
 
 const ACCIONES_DEL_PEDIDO: ReadonlySet<AccionOF> = new Set([
@@ -474,11 +470,18 @@ export function Drawer({
   // (Iván, 27/11/2026, al compactar la tarjeta).
   const plegables = ofsVisibles.length >= 2;
   const plegadasDeEntrada = ofsVisibles.length >= PLEGAR_DESDE;
+  // LA DEVUELTA SALE ABIERTA aunque el pedido tenga muchas OF (27/11/2026,
+  // comité de la vista del autor): plegada, su «Qué corregir» quedaba a dos
+  // clics de quien venía de la campana a corregirla.
+  const abiertaDeEntrada = (of: OF) => !plegadasDeEntrada || correccionDe(of) === "a_corregir";
   const ofAbierta = (of: OF) =>
-    !plegables || !!of.fichandoRol || ofsCambiadas.has(of.id) === plegadasDeEntrada;
+    !plegables || !!of.fichandoRol || abiertaDeEntrada(of) !== ofsCambiadas.has(of.id);
   const todasAbiertas = ofsVisibles.every(ofAbierta);
   const ponerTodas = (abiertas: boolean) =>
-    setOfsCambiadas(abiertas === plegadasDeEntrada ? new Set(ofsVisibles.map((o) => o.id)) : new Set());
+    setOfsCambiadas(new Set(ofsVisibles.filter((o) => abiertaDeEntrada(o) !== abiertas).map((o) => o.id)));
+  // Cuántas vuelven a corregir, para el aviso de encima de la lista.
+  const aCorregir = ofsVisibles.filter((o) => correccionDe(o) === "a_corregir");
+  const puntosACorregir = aCorregir.reduce((n, o) => n + puntosDeLaNota(o.observacion), 0);
   const alternarOF = (id: string) =>
     setOfsCambiadas((prev) => {
       const next = new Set(prev);
@@ -1392,6 +1395,20 @@ export function Drawer({
             </p>
           )}
 
+          {/* EL AVISO DEL PEDIDO, solo con 2 o más devueltas: cuenta y señala
+              para que no se pase ninguna; lo que hay que hacer está en cada OF.
+              Con una sola sobra: su tarjeta ya sale abierta con la nota arriba. */}
+          {aCorregir.length >= 2 && (
+            <p
+              role="status"
+              className="mb-2 flex items-center gap-2 rounded-lg bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-error"
+            >
+              <span aria-hidden="true">↩</span>
+              {aCorregir.length} OF vuelven con correcciones
+              {puntosACorregir > 0 && ` · ${puntosACorregir} ${puntosACorregir === 1 ? "punto" : "puntos"}`}
+            </p>
+          )}
+
           {/* `mb-4`, el mismo aire que llevan todos los bloques de la ficha: sin
               él, el comentario del pedido quedaba pegado a la última OF. */}
           <ul className="mb-4 space-y-2.5">
@@ -1728,6 +1745,7 @@ function OFRow({
   // Solo en las anuladas: en una devuelta ese mismo campo lleva la nota del
   // revisor (los dos usos lo comparten, ver lib/anulacion.ts).
   const anulacion = of.estado === "anulada" ? leerAnulacion(of.observacion) : null;
+  const correccion = correccionDe(of);
   const autor = opById(of.autorId);
   const revisor = opById(of.revisorId);
   // Cuándo empieza Producción a fabricarla: el planteo tiene que estar antes.
@@ -1969,6 +1987,26 @@ function OFRow({
       )}
       {abierta && (
         <>
+          {/* «QUÉ CORREGIR», LO PRIMERO DE LA TARJETA (27/11/2026, comité de la
+              vista del autor): iba debajo de cinco bloques de datos. Se calla en
+              una aprobada —en rojo diría que aún falla algo— y en una anulada,
+              cuyo campo lleva el motivo (ver `correccionDe`). Ya reenviada, se
+              pliega en gris. El dato no se borra: la segunda vuelta lo usa para
+              poner delante lo que falló. */}
+          {correccion && (
+            <NotaDevolucion
+              observacion={of.observacion!}
+              enviada={correccion === "enviada"}
+              // Al REVISOR se le abre: vuelve a revisión y quiere delante lo
+              // que pidió para comprobar que se corrigió.
+              abrirEnviada={!!miId && of.revisorId === miId}
+              // Las casillas, solo para el AUTOR: es quien corrige. A los demás
+              // la lista se les queda para leer.
+              marcarComo={miId && of.autorId === miId ? of.id : undefined}
+              className="mt-1.5"
+            />
+          )}
+
           {/* QUÉ SE VENDIÓ, con medidas y acabados. La línea de arriba es el nombre
               de catálogo ("TOLDO VERTICAL ELECTRA") y no dice de qué tamaño es ni
               cómo va rematado; esto sí, y es lo que hay que leer para plantearlo.
@@ -2032,23 +2070,6 @@ function OFRow({
             </p>
           )}
 
-
-          {/* La nota del revisor. En una OF anulada este campo lleva otra cosa —el
-              motivo de la anulación, que ya sale en el distintivo— y repetirlo aquí
-              en rojo la haría parecer devuelta.
-              Y se calla en cuanto se aprueba: en
-              una OF aprobada, «Qué corregir» en rojo decía que aún falla algo.
-              El dato no se borra —la segunda vuelta lo usa para poner delante lo
-              que falló—, solo deja de enseñarse aquí. */}
-          {of.observacion && !anulacion && !NOTA_YA_CORREGIDA.has(of.estado) && (
-            <NotaDevolucion
-              observacion={of.observacion}
-              // Las casillas, solo para el AUTOR: es quien corrige. A los demás
-              // la lista se les queda para leer.
-              marcarComo={miId && of.autorId === miId ? of.id : undefined}
-              className="mt-1.5 rounded-md bg-red-500/10 px-2.5 py-1 text-[11px] text-error"
-            />
-          )}
 
           {/* Autor y revisor van en la fila de los botones, a la derecha (ver
               `personas` arriba). En solo lectura no hay botones: van solos. */}

@@ -9,7 +9,7 @@ import { FASES, pedidoListoParaPasar, ofsQueCuentan } from "@/lib/fases-tablero"
 import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
 import { bloqueosDeLaGuia, fallosDeLaGuia, guiaDeFamilias } from "@/lib/guia-revision";
-import { leerDevolucion } from "@/lib/devolucion";
+import { correccionDe, leerDevolucion } from "@/lib/devolucion";
 import { leerCausas, leerPasos, type CausaDevolucion, type PasoRevision } from "@/lib/causas-cliente";
 import { useMarcasRevision } from "@/lib/marcas-cliente";
 import { DevolverInline } from "./DevolverInline";
@@ -593,12 +593,19 @@ function FilaRevision({
             ))}
           </ul>
 
-          {estado === "devuelta" && ofs.find((o) => o.observacion) && (
-            <NotaDevolucion
-              observacion={ofs.find((o) => o.observacion)!.observacion!}
-              className="rounded bg-red-500/10 px-2 py-1.5 text-[11px] text-error"
-            />
-          )}
+          {/* La nota de CADA OF devuelta, con su código si hay varias: antes
+              solo salía la de la primera y las demás no se veían (27/11/2026). */}
+          {estado === "devuelta" &&
+            ofs
+              .filter((o) => correccionDe(o) === "a_corregir")
+              .map((o, _i, devueltas) => (
+                <div key={o.id}>
+                  {devueltas.length > 1 && (
+                    <p className="mb-0.5 font-mono text-[11px] font-bold text-text-muted">{o.codigo}</p>
+                  )}
+                  <NotaDevolucion observacion={o.observacion!} />
+                </div>
+              ))}
 
           {/* Acciones. Solo sale lo que me toca a MÍ: la máquina de estados ya
               filtra por rol, así que al autor esto se le queda en un resumen de

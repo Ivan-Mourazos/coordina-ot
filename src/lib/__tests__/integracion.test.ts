@@ -43,6 +43,13 @@ describe("resumirOf", () => {
       { estado: "en_revision", observacion: "nota interna", updatedAt: "2026-09-29T07:00:00Z", revisorId: null },
     ])).toEqual({ of: "0230701", estado: "en_revision", nota: "", actualizado: "2026-09-29T08:00:00Z", revisor: "", autor: "" });
   });
+  test("la nota sigue llegando mientras el autor corrige (en curso)", () => {
+    const r = resumirOf("0230703", [
+      { estado: "en_curso", observacion: "[2;p11] ✗ Las medidas — Faltan 3 cm", updatedAt: "2026-09-29T08:00:00Z", revisorId: null },
+    ]);
+    expect(r.estado).toBe("en_curso");
+    expect(r.nota).toBe("✗ Las medidas — Faltan 3 cm");
+  });
   test("una tarea anulada no cuenta si hay otra: anulada + aprobada = aprobada, con el revisor de la aprobada", () => {
     expect(resumirOf("0230700", [
       { estado: "anulada", observacion: "duplicado", updatedAt: "2026-09-29T10:00:00Z", revisorId: "carron" },

@@ -7,7 +7,7 @@ import type { Prioridad } from "./types";
 // enseñar «aprobado» o «devuelto» sin que nadie lo copie a mano. CoordinaOT
 // manda: aquí solo se lee, y solo se cuenta el estado de las OF que se piden.
 
-import { leerDevolucion } from "./devolucion";
+import { correccionDe, leerDevolucion } from "./devolucion";
 
 export const MAX_OFS = 50;
 const OF_RE = /^\d{5,9}$/;
@@ -114,7 +114,13 @@ export function resumirOf(of: string, filas: readonly FilaOverlayOf[], prioridad
     estado: peor.normal,
     // Sin el prefijo de causas y pasos («[1,3;p4,7] »): es para que lo lea una
     // persona en la web de planteamientos, no para contar.
-    nota: peor.normal === "devuelta" ? leerDevolucion(peor.observacion).nota.trim() : "",
+    // TAMBIÉN MIENTRAS SE CORRIGE (27/11/2026): en cuanto el autor fichaba, la
+    // OF pasaba a «en curso» y Planteamientos dejaba de ver la nota, justo
+    // cuando iba allí a corregir. Ver `correccionDe`.
+    nota:
+      correccionDe({ estado: peor.normal, observacion: peor.observacion }) === "a_corregir"
+        ? leerDevolucion(peor.observacion).nota.trim()
+        : "",
     actualizado,
     revisor: ultimaAprobada?.revisorId ?? "",
     // El de la tarea que manda; si no tiene, el de otra tarea viva de OT.
