@@ -127,6 +127,36 @@ export function sinMirar(
   return puntos.filter((p) => (marcas[p.id] ?? "sin_mirar") === "sin_mirar").length;
 }
 
+/** Qué impide aprobar y qué impide devolver, según la guía.
+ *
+ *  SE MARCA SOLO LO QUE FALLA (Iván, 27/11/2026). Hasta ahora no se podía ni
+ *  aprobar ni devolver con un paso sin mirar, y aprobar un trabajo limpio
+ *  costaba un clic por paso. Ahora el ✓ es opcional —sirve para llevar la
+ *  cuenta si te interrumpen— y lo que bloquea es otra cosa:
+ *
+ *  · NO SE APRUEBA CON UNA ✗ PUESTA. Antes sí se podía: solo se miraba que no
+ *    quedara nada sin mirar, y una OF con fallos marcados salía aprobada.
+ *  · NO SE DEVUELVE UNA ✗ SIN DECIR QUÉ FALLA. «Las medidas» a secas no manda
+ *    al autor a ningún sitio: tiene que saber cuál y cuánto. */
+export function bloqueosDeLaGuia(
+  puntos: readonly PuntoGuia[],
+  marcas: Readonly<Record<number, EstadoPunto>>,
+  comentarios: Readonly<Record<number, string>> = {},
+): { aprobar: string | null; devolver: string | null } {
+  const fallan = puntos.filter((p) => marcas[p.id] === "falla");
+  const sinTexto = fallan.filter((p) => !comentarios[p.id]?.trim()).length;
+  return {
+    aprobar:
+      fallan.length > 0
+        ? `${fallan.length === 1 ? "Hay un paso marcado" : `Hay ${fallan.length} pasos marcados`} como fallo: devuélvela o quita la ✗`
+        : null,
+    devolver:
+      sinTexto > 0
+        ? `Escribe qué falla en ${sinTexto === 1 ? "la ✗ que queda" : `las ${sinTexto} ✗ que quedan`}`
+        : null,
+  };
+}
+
 /** ¿Dice ya lo mismo que otra? Lo usa la pantalla de edición para avisar ANTES
  *  de guardar, en vez de dejar que el servidor conteste con un choque. */
 export function yaExiste(

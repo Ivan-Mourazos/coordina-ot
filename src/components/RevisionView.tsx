@@ -8,7 +8,7 @@ import { ESTADO, ROL, etiquetaCantidad, fmtMin } from "@/lib/estado";
 import { FASES, pedidoListoParaPasar, ofsQueCuentan } from "@/lib/fases-tablero";
 import { ACCIONES, accionesDisponibles, type AccionOF } from "@/lib/acciones";
 import { facetsRevisorEnEstado, type FacetRevision as RFacet } from "@/lib/revision";
-import { fallosDeLaGuia, guiaDeFamilias, sinMirar } from "@/lib/guia-revision";
+import { bloqueosDeLaGuia, fallosDeLaGuia, guiaDeFamilias } from "@/lib/guia-revision";
 import { leerDevolucion } from "@/lib/devolucion";
 import { leerCausas, leerPasos, type CausaDevolucion, type PasoRevision } from "@/lib/causas-cliente";
 import { useMarcasRevision } from "@/lib/marcas-cliente";
@@ -436,14 +436,11 @@ function FilaRevision({
   const fallos = fallosDeLaGuia(puntos, marcas, comentarios);
   // Segunda vuelta: lo que falló en la devolución anterior, primero.
   const fallaronAntes = new Set(ofs.flatMap((o) => leerDevolucion(o.observacion).pasos ?? []));
-  // NO SE APRUEBA NI SE DEVUELVE CON PUNTOS SIN MIRAR. La guía deja de ser un
-  // recordatorio y pasa a ser el paso previo: dar por buena una OF sin haberla
-  // repasado entera es lo que esto viene a evitar, y devolverla a medias deja
-  // al autor con media corrección —lo que no se miró aparece en la vuelta
-  // siguiente—. Con la guía vacía (una familia sin puntos todavía) no se
-  // bloquea nada: no habría forma de desbloquearlo.
-  const faltan = sinMirar(puntos, marcas);
-  const impedido = faltan > 0 ? `Faltan ${faltan} ${faltan === 1 ? "punto" : "puntos"} por mirar` : null;
+  // SE MARCA SOLO LO QUE FALLA (Iván, 27/11/2026). Antes no se aprobaba ni
+  // devolvía con un paso sin mirar; ahora el ✓ es opcional y lo que bloquea es
+  // una ✗ puesta (no se aprueba) o una ✗ sin texto (no se devuelve). Ver
+  // `bloqueosDeLaGuia`.
+  const { aprobar: impedido, devolver: impedidoDevolver } = bloqueosDeLaGuia(puntos, marcas, comentarios);
 
   // También al cambiar de revisor se elige directamente. Se conservan las
   // exclusiones de todos los autores del grupo y el orden de los compañeros.
@@ -656,7 +653,7 @@ function FilaRevision({
                     }
                     fallos={fallos}
                     familias={familias}
-                    impedido={impedido}
+                    impedido={impedidoDevolver}
                     claseBoton={`${BOTON_BLOQUE} ${BOTON_NEUTRO}`}
                     ofs={ofs.map((o) => ({ id: o.id, codigo: o.codigo }))}
                     onDevolver={(obs, ids) => (ids ?? ofIds).forEach((id) => onAccion(id, "devolver", obs))}

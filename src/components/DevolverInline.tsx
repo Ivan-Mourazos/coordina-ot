@@ -14,6 +14,12 @@ import { SelectorOFs, useElegidas } from "./SelectorOFs";
 //   escribía la nota de memoria: tres veces lo mismo, y en producción ninguna
 //   de las 8 devoluciones desde el 11/10 llevaba causa.
 // · TODA DEVOLUCIÓN LLEVA CAUSA: una de la lista u «Otra cosa» con texto.
+// · SIN SEGUNDO MENÚ SI YA HAY ✗ (Iván, 27/11/2026, comité de revisión). Con
+//   fallos marcados en la guía, la causa sale de cada paso y la nota de lo que
+//   se escribió en cada ✗ (obligatorio). Aquí solo se confirma, se eligen las
+//   OF si hay varias y, si hace falta, se añaden «Indicaciones extra» en texto
+//   libre. La lista de causas, con su casilla, ya solo sale al devolver SIN
+//   ninguna ✗: ahí sí hay que decir de qué tipo es el fallo.
 // · LAS CAUSAS NO SE CREAN AQUÍ: se gestionan en «Pasos y causas». Desde aquí
 //   salían repetidas y mal escritas («Faltan anotaciones de material», «Faltan
 //   Anotacións»): de 15, 10 acabaron retiradas. Lo que no encaja va a «Otra
@@ -57,9 +63,9 @@ export function DevolverInline({
    *  pedido de cinco) y devolver las cinco manda a corregir cuatro que están
    *  bien. Con una sola no se pregunta nada. */
   ofs?: readonly { id: string; codigo: string }[];
-  /** Por qué no se puede devolver todavía. Hoy: quedan puntos de la guía sin
-   *  mirar. Mandar una OF atrás sin haberla repasado entera deja al autor con
-   *  media corrección, y a la vuelta aparecerá lo que no se llegó a mirar. */
+  /** Por qué no se puede devolver todavía. Hoy: alguna ✗ de la guía sin decir
+   *  qué falla (ver `bloqueosDeLaGuia`). «Las medidas» a secas no le dice al
+   *  autor qué corregir. */
   impedido?: string | null;
   /** Causas ya marcadas al abrir. Vienen de la guía de revisión: lo que el
    *  revisor marcó como fallo mientras repasaba. Marcadas, no impuestas: se
@@ -104,9 +110,14 @@ export function DevolverInline({
   const [elegidas, setElegidas] = useState<number[]>([]);
   // «Otra cosa»: lo que no encaja en ninguna causa. Pide texto.
   const [otra, setOtra] = useState(false);
-  // Las causas de la guía, sumadas a las sugeridas a mano.
+  // CON ✗ EN LA GUÍA, las causas salen de ahí y no se eligen: se calculan en
+  // cada pintado, así que quitar una ✗ quita su causa (antes se sumaban a lo
+  // elegido y una ✗ retirada dejaba su causa puesta).
+  const conGuia = fallos.length > 0;
   const deLaGuia = [...new Set([...(causasSugeridas ?? []), ...fallos.map((f) => f.causaId)])];
-  const claveGuia = deLaGuia.join(",");
+  // Las «Indicaciones extra», plegadas hasta que se piden: lo normal es que lo
+  // que hay que decir ya esté en cada ✗.
+  const [extra, setExtra] = useState(false);
   // A cuáles va. Empieza con TODAS marcadas: es lo que hacía antes este botón,
   // y lo normal sigue siendo que el pedido vuelva entero. Quitar las que están
   // bien es un gesto de más para el caso raro, no al revés.
@@ -118,23 +129,17 @@ export function DevolverInline({
   // La lista se pide al abrir, no al montar: hay una de estas por cada OF de la
   // pantalla y pedirlas todas de golpe serían decenas de consultas para algo
   // que casi nunca se usa.
+  // Solo hace falta sin ✗: con ellas no se enseña la lista.
   useEffect(() => {
-    if (!abierto) return;
+    if (!abierto || conGuia) return;
     let vivo = true;
     leerCausas().then((cs) => {
-      if (!vivo) return;
-      setCausas(cs);
-      // Lo que la guía marcó como fallo llega ya elegido. Se añade a lo que
-      // hubiera —no se pisa—: quien abrió, cerró y volvió a abrir no debería
-      // perder lo que había marcado a mano.
-      if (claveGuia) {
-        setElegidas((p) => [...new Set([...p, ...claveGuia.split(",").map(Number)])]);
-      }
+      if (vivo) setCausas(cs);
     });
     return () => {
       vivo = false;
     };
-  }, [abierto, claveGuia]);
+  }, [abierto, conGuia]);
 
   if (!abierto) {
     return (
@@ -154,7 +159,7 @@ export function DevolverInline({
 
   // La nota: las líneas de la guía y, detrás, lo que se añada a mano.
   const nota = notaDeLaGuia(fallos, obs);
-  const devolucion = { causas: elegidas, pasos: fallos.map((f) => f.pasoId), nota };
+  const devolucion = { causas: conGuia ? deLaGuia : elegidas, pasos: fallos.map((f) => f.pasoId), nota };
   // Sin OF que elegir se manda undefined, que es lo que ya entendían los que
   // llamaban a esto antes: "a todas las del grupo".
   const confirmar = () => {
@@ -168,15 +173,18 @@ export function DevolverInline({
       setLineas([""]);
       setElegidas([]);
       setOtra(false);
+      setExtra(false);
     } else {
       setAbierto(false);
     }
   };
   // TODA DEVOLUCIÓN LLEVA CAUSA (una de la lista u «Otra cosa»), una nota que
   // diga qué corregir —«Otra cosa» la pide escrita—, y alguna OF a la que ir.
-  const faltaCausa = elegidas.length === 0 && !otra;
-  const faltaNota = !nota.trim() || (otra && elegidas.length === 0 && !obs.trim());
-  const listo = !faltaCausa && !faltaNota && (!ofs || ofsElegidas.length > 0);
+  // Con ✗, la causa ya viene de la guía; lo que falta, si falta, es el texto
+  // de alguna ✗ (eso lo dice `impedido`, que viene de `bloqueosDeLaGuia`).
+  const faltaCausa = !conGuia && elegidas.length === 0 && !otra;
+  const faltaNota = !nota.trim() || (!conGuia && otra && elegidas.length === 0 && !obs.trim());
+  const listo = !impedido && !faltaCausa && !faltaNota && (!ofs || ofsElegidas.length > 0);
   const alternar = (id: number) =>
     setElegidas((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
@@ -201,7 +209,13 @@ export function DevolverInline({
       {ofs && (
         <SelectorOFs ofs={ofs} elegidas={ofsElegidas} onCambiar={setOfsElegidas} tono="devolver" />
       )}
-      <p className="mb-1.5 text-[11px] font-semibold text-text">¿Por qué vuelve al autor?</p>
+      {conGuia ? (
+        <p className="mb-1 text-[11px] font-semibold text-text">Le llega al autor, para corregir:</p>
+      ) : (
+        <p className="mb-1.5 text-[11px] font-semibold text-text">¿Por qué vuelve al autor?</p>
+      )}
+      {!conGuia && (
+        <>
 
       {/* UNA POR LÍNEA, no en fila envuelta. Empezaron siendo tres píldoras y
           cabían de sobra; ahora son once y se amontonaban en un panel de columna
@@ -256,14 +270,13 @@ export function DevolverInline({
         </span>
         Otra cosa (escríbela abajo)
       </button>
+        </>
+      )}
 
       {/* Lo que dirá la nota, sacado de la guía: una línea por paso que falla.
           Es lo que el autor recibirá como lista de qué corregir. */}
-      {fallos.length > 0 && (
-        <div className="mt-1.5 rounded-md bg-surface px-2 py-1.5 text-[11px] ring-1 ring-border">
-          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-            De la guía
-          </p>
+      {conGuia && (
+        <div className="rounded-md bg-surface px-2 py-1.5 text-[11px] ring-1 ring-border">
           <ul className="space-y-0.5">
             {fallos.map((f) => (
               <li key={f.pasoId} className="text-text">
@@ -278,6 +291,23 @@ export function DevolverInline({
       {/* Una línea por cosa a corregir. Intro abre la siguiente y borrar una
           vacía la quita, como en una lista de cualquier editor; pegar un texto
           de varios renglones lo reparte en líneas. */}
+      {conGuia && !extra && (
+        <button
+          type="button"
+          onClick={() => {
+            setExtra(true);
+            setEnfocar(0);
+          }}
+          className="mt-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-text-muted hover:bg-red-500/10 hover:text-text"
+        >
+          + Indicaciones extra
+        </button>
+      )}
+      {(!conGuia || extra) && (
+        <>
+      {conGuia && (
+        <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">Indicaciones extra</p>
+      )}
       <ol className="mt-1.5 space-y-1">
         {lineas.map((l, i) => (
           <li key={i} className="flex items-center gap-1">
@@ -288,7 +318,7 @@ export function DevolverInline({
               ref={(el) => {
                 campos.current[i] = el;
               }}
-              autoFocus={i === 0}
+              autoFocus={i === 0 && !conGuia}
               value={l}
               aria-label={`Corrección ${i + 1}`}
               onChange={(e) => cambiarLinea(i, e.target.value)}
@@ -319,8 +349,8 @@ export function DevolverInline({
               placeholder={
                 i > 0
                   ? "Otra cosa a corregir"
-                  : fallos.length > 0
-                    ? "Algo más que decirle (opcional)"
+                  : conGuia
+                    ? "Algo más que decirle, que no sea de ningún paso"
                     : "Qué hay que corregir (la cota, la medida, el color…)"
               }
               className="min-w-0 flex-1 rounded-md bg-surface px-2 py-1 text-xs text-text outline-none border border-borde-campo placeholder:text-text-muted"
@@ -346,6 +376,8 @@ export function DevolverInline({
       >
         + Añadir línea
       </button>
+        </>
+      )}
 
       <div className="mt-1.5 flex items-center gap-1.5">
         <button
@@ -363,9 +395,9 @@ export function DevolverInline({
         </button>
         {/* Se dice POR QUÉ está apagado el botón. Sin esto parece que la web se
             ha roto: las causas están puestas y no deja seguir. */}
-        {(faltaCausa || faltaNota) && (
+        {(impedido || faltaCausa || faltaNota) && (
           <span className="text-[10px] text-text-muted">
-            {faltaCausa ? "Marca una causa u «Otra cosa»" : "Escribe qué hay que corregir"}
+            {impedido ?? (faltaCausa ? "Marca una causa u «Otra cosa»" : "Escribe qué hay que corregir")}
           </span>
         )}
       </div>

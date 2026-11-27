@@ -17,6 +17,11 @@ import type { EstadoPunto, PuntoGuia } from "@/lib/guia-revision";
 // Tres estados y no una casilla: "sin mirar" y "bien" no son lo mismo. Con una
 // sola casilla, lo no marcado diría a la vez "no he llegado" y "está mal".
 //
+// SE MARCA SOLO LO QUE FALLA (Iván, 27/11/2026). El ✓ queda para quien quiera
+// llevar la cuenta, pero ya no hace falta tocar cada paso para aprobar: lo que
+// bloquea es una ✗ puesta (no se aprueba) o una ✗ sin texto (no se devuelve).
+// Ver `bloqueosDeLaGuia`.
+//
 // Lo marcado SE GUARDA mientras dura la revisión (ver useMarcasRevision): de
 // ello depende poder aprobar, y perderlo al refrescar obligaba a repasarlo
 // todo. Se borra al aprobar o devolver.
@@ -51,6 +56,7 @@ export function GuiaRevision({
 }) {
   // Sin puntos no se pinta nada. Pasa cuando alguien retira todas las de una
   // familia, y un recuadro vacío titulado "Qué mirar" sería peor que nada.
+  const [recien, setRecien] = useState<number | null>(null);
   if (puntos.length === 0) return null;
   // Lo que falló la otra vez, primero; el resto en su orden.
   const ordenados = fallaronAntes?.size
@@ -59,57 +65,35 @@ export function GuiaRevision({
 
   const fallos = puntos.filter((p) => marcas[p.id] === "falla").length;
   const vistos = puntos.filter((p) => marcas[p.id] && marcas[p.id] !== "sin_mirar").length;
-  const faltan = puntos.length - vistos;
+  const sinTexto = puntos.filter((p) => marcas[p.id] === "falla" && !comentarios[p.id]?.trim()).length;
 
-  // MIENTRAS FALTA ALGO, SE VE. Nació como una caja gris más entre las otras y
-  // se perdía en la columna: siendo el paso que hay que dar antes de aprobar,
-  // pasar desapercibida es justo lo que no puede hacer. Con puntos pendientes
-  // va en violeta —el color de "revisar" en toda la app— con su barra de
-  // avance; en cuanto está entera, se apaga y se queda discreta, porque ya no
-  // hay nada que pedirle a nadie.
-  const pendiente = faltan > 0;
-
+  // En violeta —el color de "revisar" en toda la app— mientras se revisa. Ya
+  // no se apaga al marcarla entera ni lleva barra de avance: marcar lo que
+  // está bien es opcional, así que "entera" ya no dice que se haya acabado.
   return (
-    <div
-      className={`w-full overflow-hidden rounded-lg ring-1 ${
-        pendiente
-          ? "bg-violet-500/10 ring-violet-500/40"
-          : "bg-teal-500/5 ring-teal-500/25"
-      }`}
-    >
+    <div className="w-full overflow-hidden rounded-lg bg-violet-500/10 ring-1 ring-violet-500/40">
       <button
         type="button"
         onClick={() => onAbrir(!abierta)}
         aria-expanded={abierta}
-        className={`flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-[11px] font-bold uppercase tracking-wide ${
-          pendiente ? "text-violet-700 dark:text-violet-300" : "text-teal-700 dark:text-teal-300"
-        }`}
+        className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-[11px] font-bold uppercase tracking-wide text-violet-700 dark:text-violet-300"
       >
         <span aria-hidden="true" className="text-[9px]">
           {abierta ? "▾" : "▸"}
         </span>
-        {pendiente ? "Qué mirar antes de aprobar" : "Repasado entero"}
-        {/* El avance, no el total: "3 de 8" dice si la revisión va por la mitad,
-            que es lo que se pregunta uno al volver de una interrupción. */}
-        <span className="ml-auto shrink-0 tabular-nums">
-          {vistos} de {puntos.length}
-        </span>
+        Qué mirar
+        <span className="font-medium normal-case tracking-normal opacity-70">· marca lo que falle</span>
+        {/* El avance, solo si se ha marcado algo: el ✓ es opcional, y «0 de 8»
+            parecería una tarea pendiente. Sirve para saber por dónde ibas al
+            volver de una interrupción. */}
+        <span className="ml-auto shrink-0 tabular-nums">{vistos > 0 ? `${vistos} de ${puntos.length}` : ""}</span>
         {fallos > 0 && (
           <span className="shrink-0 rounded bg-red-500/20 px-1 py-px text-[10px] font-bold normal-case text-error">
             {fallos === 1 ? "1 falla" : `${fallos} fallan`}
+            {sinTexto > 0 && ` · ${sinTexto} sin texto`}
           </span>
         )}
       </button>
-
-      {/* Cuánto llevas, sin tener que abrirla ni contar. Dos píxeles de alto:
-          dice lo mismo que el "3 de 8" pero se ve de refilón desde el otro
-          extremo de la pantalla. */}
-      <div className="h-0.5 w-full bg-black/10 dark:bg-white/10">
-        <div
-          className={`h-full transition-all ${pendiente ? "bg-violet-500" : "bg-teal-500"}`}
-          style={{ width: `${puntos.length ? (vistos / puntos.length) * 100 : 0}%` }}
-        />
-      </div>
 
       {abierta && (
         <ul className="border-t border-border bg-surface">
@@ -155,13 +139,19 @@ export function GuiaRevision({
                 />
                 <Marca
                   activa={falla}
-                  onClick={() => onMarcar(p.id, falla ? "sin_mirar" : "falla")}
+                  onClick={() => {
+                    if (!falla) setRecien(p.id);
+                    onMarcar(p.id, falla ? "sin_mirar" : "falla");
+                  }}
                   etiqueta={`${p.mira}: falla`}
                   tono="falla"
                 />
               </div>
               {falla && (
                 <ComentarioFallo
+                  // El cursor, dentro al marcar la ✗: escribir qué falla es
+                  // obligatorio y es lo siguiente que se hace.
+                  enfocar={recien === p.id}
                   inicial={comentarios[p.id] ?? ""}
                   onGuardar={(texto) => onMarcar(p.id, "falla", texto)}
                 />
@@ -175,10 +165,18 @@ export function GuiaRevision({
   );
 }
 
-/** «¿Qué falla?» bajo un ✗. Opcional, en una línea. Se guarda al salir del
+/** «¿Qué falla?» bajo un ✗. Obligatorio para devolver (27/11/2026), en una línea. Se guarda al salir del
  *  campo, con Intro, o al dejar de escribir un momento: sin botón de guardar
  *  que olvidar. */
-function ComentarioFallo({ inicial, onGuardar }: { inicial: string; onGuardar: (texto: string) => void }) {
+function ComentarioFallo({
+  inicial,
+  onGuardar,
+  enfocar = false,
+}: {
+  inicial: string;
+  onGuardar: (texto: string) => void;
+  enfocar?: boolean;
+}) {
   const [texto, setTexto] = useState(inicial);
   const guardado = useRef(inicial);
   const temporizador = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -207,10 +205,15 @@ function ComentarioFallo({ inicial, onGuardar }: { inicial: string; onGuardar: (
             guardar(texto);
           }
         }}
-        placeholder="¿Qué falla? (opcional: «la cota del primer ollao»)"
-        aria-label="Qué falla en este paso"
+        autoFocus={enfocar}
+        required
+        placeholder="¿Qué falla? «la cota del primer ollao», «2 cm de más»…"
+        aria-label="Qué falla en este paso (obligatorio para devolver)"
         className="w-full rounded-md bg-surface px-2 py-1 text-[11px] text-text outline-none border border-red-500 placeholder:text-text-muted"
       />
+      {!texto.trim() && (
+        <p className="mt-0.5 text-[10px] text-error">Hay que decir qué falla para poder devolverla</p>
+      )}
     </div>
   );
 }
@@ -240,7 +243,8 @@ function Marca({
       aria-pressed={activa}
       aria-label={etiqueta}
       title={etiqueta}
-      className={`grid size-4 shrink-0 place-items-center rounded text-[9px] font-bold ${colores}`}
+      // 22 px: a 16 se fallaba el clic entre las dos marcas.
+      className={`grid size-5.5 shrink-0 place-items-center rounded-md text-[11px] font-bold ${colores}`}
     >
       {tono === "bien" ? "✓" : "✗"}
     </button>

@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import {
+  bloqueosDeLaGuia,
   causasDeLoQueFalla,
   guiaDeFamilias,
   sinMirar,
@@ -82,4 +83,22 @@ test("avisa de que otra causa ya dice lo mismo, escrita distinta", () => {
   // La propia no cuenta: editarla para corregirle una tilde tiene que valer.
   expect(yaExiste("Material y acabados", CAUSAS, 2)).toBe(false);
   expect(yaExiste("Falta el croquis", CAUSAS)).toBe(false);
+});
+
+test("se aprueba sin marcar nada, pero no con una ✗ puesta", () => {
+  const puntos = guiaDeFamilias(PASOS, CAUSAS, ["LONA"]);
+  // Marcar lo que está bien es opcional (Iván, 27/11/2026).
+  expect(bloqueosDeLaGuia(puntos, {}).aprobar).toBeNull();
+  expect(bloqueosDeLaGuia(puntos, { 11: "bien" }).aprobar).toBeNull();
+  expect(bloqueosDeLaGuia(puntos, { 11: "falla" }, { 11: "2 cm" }).aprobar).toMatch(/un paso marcado/);
+  expect(bloqueosDeLaGuia(puntos, { 11: "falla", 13: "falla" }, {}).aprobar).toMatch(/2 pasos/);
+});
+
+test("no se devuelve una ✗ sin decir qué falla", () => {
+  const puntos = guiaDeFamilias(PASOS, CAUSAS, ["LONA"]);
+  expect(bloqueosDeLaGuia(puntos, {}).devolver).toBeNull();
+  expect(bloqueosDeLaGuia(puntos, { 11: "falla" }, {}).devolver).toMatch(/la ✗ que queda/);
+  expect(bloqueosDeLaGuia(puntos, { 11: "falla", 13: "falla" }, { 11: "x", 13: "  " }).devolver).toMatch(/la ✗ que queda/);
+  expect(bloqueosDeLaGuia(puntos, { 11: "falla", 13: "falla" }, {}).devolver).toMatch(/las 2 ✗/);
+  expect(bloqueosDeLaGuia(puntos, { 11: "falla", 13: "falla" }, { 11: "x", 13: "y" }).devolver).toBeNull();
 });
