@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-27",
-    "hasta": "6ff6096",
+    "hasta": "b709dec",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -9,6 +9,13 @@
         "apartado": "ot",
         "detalle": "Se abre con todas marcadas y desmarcas las que dejas para luego. «Pasar a Producción» pasa siempre el pedido entero.",
         "tanda": 1
+      },
+      {
+        "tipo": "nuevo",
+        "titulo": "En el «⋯» del pedido, «Fichar en varias…»: eliges en qué OF pones el reloj de una vez",
+        "apartado": "ot",
+        "detalle": "Salen marcadas las tuyas pendientes; desmarcas las que no y fichas todas juntas.",
+        "tanda": 2
       }
     ]
   },
