@@ -110,7 +110,7 @@ export function LineaRevisar({
           El texto «Revisando / Por empezar» ya no sale en esta fila: la columna
           dice que te toca a ti y el botón («Revisar» vs «Reanudar») indica el
           estado (Iván, 27/11/2026). */}
-      <div className="grid h-5 items-center gap-x-1.5 grid-cols-[minmax(5.75rem,max-content)_4.5rem_minmax(0,26rem)_auto_minmax(max-content,1fr)] @max-[34rem]:grid-cols-[minmax(5.75rem,max-content)_4.5rem_minmax(0,26rem)_auto_minmax(max-content,1fr)] @max-[30rem]:flex @max-[30rem]:items-center @max-[30rem]:gap-1.5">
+      <div className="grid h-5 items-center gap-x-1.5 grid-cols-[minmax(5rem,max-content)_3.5rem_minmax(0,26rem)_auto_minmax(max-content,1fr)] @max-[34rem]:grid-cols-[minmax(5rem,max-content)_3.5rem_minmax(0,26rem)_auto_minmax(max-content,1fr)] @max-[30rem]:flex @max-[30rem]:items-center @max-[30rem]:gap-1.5">
         <button
           type="button"
           onClick={(e) => {

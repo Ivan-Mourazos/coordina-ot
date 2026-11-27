@@ -1567,6 +1567,22 @@ function LineaRol({
   );
 }
 
+/** «TOLDO NUEVO» → «Toldo nuevo»: RPS la escribe en mayúsculas y, junto al
+ *  nombre de la familia en la pista del icono, gritaba. Las siglas cortas
+ *  («TF» de «ACCESORIOS TF») se quedan en mayúsculas; «de», «la»… no. */
+const PALABRAS_MENORES = new Set(["a", "al", "de", "del", "el", "en", "la", "las", "los", "y", "con", "sin", "para"]);
+function subfamiliaLegible(sub: string | null): string | null {
+  if (!sub) return null;
+  return sub
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((p, i) =>
+      p.length <= 3 && !PALABRAS_MENORES.has(p) ? p.toUpperCase() : i === 0 ? p[0].toUpperCase() + p.slice(1) : p,
+    )
+    .join(" ");
+}
+
 /** Desde cuántas OF se pliegan las tarjetas de la ficha. Con dos, abiertas
  *  caben en pantalla; con tres ya empujan las notas y los documentos fuera. */
 const PLEGAR_DESDE = 3;
@@ -1725,24 +1741,21 @@ function OFRow({
             (Iván y compañeros, 16/10/2026; elegido entre tres en captura). */}
         {/* La familia, SOLO EL ICONO delante del número (Iván, 27/11/2026):
             el chip con el nombre repetía lo que ya dice la cabecera del pedido
-            y ensuciaba la línea. El nombre, al pasar el ratón. */}
-        <span title={familiaMeta(of.familia).label} className="inline-flex shrink-0">
+            y ensuciaba la línea. El nombre, al pasar el ratón.
+            La SUBFAMILIA de RPS («TOLDO NUEVO», «ACCESORIOS TF») va también ahí,
+            detrás de la familia: suelta en la línea, en mayúsculas grises junto
+            al icono, quedaba fatal (Iván, 27/11/2026). Solo si dice algo que la
+            familia no diga ya. */}
+        <span
+          title={[familiaMeta(of.familia).label, subfamiliaLegible(subfamiliaAparte(of.familia, of.subfamilia))]
+            .filter(Boolean)
+            .join(" · ")}
+          className="inline-flex shrink-0"
+        >
           <FamiliaIcon familia={of.familia} className="size-4" />
         </span>
         <span className="shrink-0 font-mono text-[15px] font-bold tracking-[0.02em] text-text">{of.codigo}</span>
         <CopiarCodigo texto={of.codigo} dentroDeBoton={plegable} className="-ml-1.5" />
-        {/* Subfamilia de RPS ("TOLDO NUEVO", "REPARACIONES", "ACCESORIOS TF").
-            Es el detalle que le falta a la familia, que en RPS es muy ancha, y
-            se enseña tal cual en vez de inventarle un sitio en nuestro
-            catálogo. Solo si dice algo que la familia no diga ya. */}
-        {subfamiliaAparte(of.familia, of.subfamilia) && (
-          <span
-            className="min-w-0 truncate text-[10px] uppercase tracking-wide text-text-muted"
-            title="Subfamilia en RPS"
-          >
-            {subfamiliaAparte(of.familia, of.subfamilia)}
-          </span>
-        )}
         {/* El estado, y en las anuladas también POR QUÉ: "ANULADA · TALLER".
             Va en el propio distintivo y no en una línea aparte porque es lo
             que se busca al repasarlas, y así se lee sin abrir nada. */}

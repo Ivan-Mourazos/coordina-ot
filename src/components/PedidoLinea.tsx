@@ -433,7 +433,7 @@ export function PedidoLinea({
             ? "flex h-5 items-center gap-2"
             : eligiendoRevisor
               ? "flex items-start gap-x-2 gap-y-1.5 @max-[30rem]:flex-col @max-[30rem]:items-stretch"
-              : "grid h-5 items-center gap-x-1.5 grid-cols-[minmax(5.75rem,max-content)_4.5rem_minmax(0,26rem)_auto_auto_minmax(max-content,1fr)] @max-[34rem]:grid-cols-[minmax(5.75rem,max-content)_4.5rem_minmax(0,26rem)_auto_auto_minmax(max-content,1fr)] @max-[30rem]:flex @max-[30rem]:items-center @max-[30rem]:gap-1.5"
+              : "grid h-5 items-center gap-x-1.5 grid-cols-[minmax(5rem,max-content)_3.5rem_minmax(0,26rem)_auto_auto_minmax(max-content,1fr)] @max-[34rem]:grid-cols-[minmax(5rem,max-content)_3.5rem_minmax(0,26rem)_auto_auto_minmax(max-content,1fr)] @max-[30rem]:flex @max-[30rem]:items-center @max-[30rem]:gap-1.5"
         }
       >
         {mostrandoFalta ? (
