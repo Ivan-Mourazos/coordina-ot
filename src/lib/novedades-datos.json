@@ -1,5 +1,18 @@
 [
   {
+    "id": "2026-11-27",
+    "hasta": "4fe7b8e",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "En un pedido con varias OF eliges cuáles dar por terminadas y se cierran de una vez",
+        "apartado": "ot",
+        "detalle": "En el «⋯» de las órdenes de fabricación, «Dar por terminadas en RPS…». Las demás siguen en el panel.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-26",
     "hasta": "fa7f1ac",
     "cambios": [
