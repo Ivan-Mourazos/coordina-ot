@@ -115,17 +115,17 @@ export function Herramientas({
       </div>
       {/* El botón lleva TU avatar, como cualquier menú de cuenta: aquí dentro
           está quién eres, y si el menú se lo tragara todo sin dejar rastro
-          fuera, saber en nombre de quién estás fichando costaría un clic. La
-          rejilla se queda al lado para que siga leyéndose como "más sitios a
-          los que ir" y no solo como "tu perfil". */}
+          fuera, saber en nombre de quién estás fichando costaría un clic. En
+          portátil el avatar deja sitio a las pestañas; el nombre queda en
+          el título del botón y al abrir el menú. */}
       <button
         type="button"
         popoverTarget={idPanel}
         // Con la sección que se ve («OT»): quien dicta por voz dice lo que lee.
         aria-label={`Menú de ${yo.nombre}, ${SECCIONES[seccion].nombreCorto}`}
         aria-expanded={open}
-        title="Quién eres, qué lista miras y otras herramientas"
-        className="flex h-full items-center gap-1.5 rounded-lg pl-1 pr-2 text-text-muted hover:text-text"
+        title={`Menú de ${yo.nombre}, ${SECCIONES[seccion].nombreCorto}`}
+        className="flex h-full items-center gap-1.5 rounded-lg pl-1 pr-2 text-text-muted hover:text-text lg:max-[1440px]:w-9 lg:max-[1440px]:justify-center lg:max-[1440px]:p-0"
       >
         <span
           className="grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-bold text-white"
@@ -137,7 +137,7 @@ export function Herramientas({
             la sección («OT») y se leía como si fueras «OT». La sección solo
             se añade a quien trabaja en varias (Manuel), que es quien necesita
             saber qué lista tiene delante. */}
-        <span className="max-w-40 truncate text-xs font-semibold text-text" title={`Lista de trabajo: ${SECCIONES[seccion].nombre}`}>
+        <span className="max-w-40 truncate text-xs font-semibold text-text lg:max-[1440px]:hidden" title={`Lista de trabajo: ${SECCIONES[seccion].nombre}`}>
           {yo.nombre}
           {misSecciones.length > 0 && <span className="font-normal text-text-muted"> · {SECCIONES[seccion].nombreCorto}</span>}
         </span>
@@ -147,7 +147,7 @@ export function Herramientas({
         <svg
           viewBox="0 0 24 24"
           aria-hidden
-          className={`size-3.5 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
+          className={`size-3.5 transition-transform motion-reduce:transition-none lg:max-[1440px]:hidden ${open ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           strokeWidth="2.5"

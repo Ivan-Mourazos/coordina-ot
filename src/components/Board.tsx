@@ -2893,34 +2893,25 @@ export function Board({
             {/* «OP» en la vista de Dirección (Carlos, Esteban, e Iván mirando como
                 Dirección); en el resto, las siglas de la sección (Iván, 14/10/2026). */}
             <Logo className="-my-3 shrink-0" siglas={soloLectura ? "OP" : SECCIONES[seccionActual].siglas} />
-            {/* Las seis pestañas ocupan unos 500 px y no se pueden acortar
-                —no hay iconos, y una pestaña sin nombre no se usa—, así que
-                por debajo de cierto ancho no caben junto al buscador y los
-                botones. En vez de aplastarlas hasta que se pinten debajo del
-                buscador, que era el fallo, la tira SE DESPLAZA. */}
-            <div className="scroll-thin order-3 col-span-2 min-w-0 overflow-x-auto lg:order-none">
-              <ViewSwitcher
-                vista={vista}
-                onChange={setVista}
-                badge={{ revision: misPorRevisar, asignar: misDevueltas, rectificados: seccionConRectificados(seccionActual) ? rectificadosPendientes : 0, solicitudes: seccionConSolicitudes(seccionActual) ? solicitudesSinCoger : 0 }}
-                conCasa={espectador}
-                conCalendario={conCalendario}
-                sinRevision={SECCIONES[seccionActual].sinRevision === true}
-                conRectificados={seccionConRectificados(seccionActual)}
-              />
-            </div>
+            <ViewSwitcher
+              className="order-3 col-span-2 min-w-0 lg:order-none"
+              vista={vista}
+              onChange={setVista}
+              badge={{ revision: misPorRevisar, asignar: misDevueltas, rectificados: seccionConRectificados(seccionActual) ? rectificadosPendientes : 0, solicitudes: seccionConSolicitudes(seccionActual) ? solicitudesSinCoger : 0 }}
+              conCasa={espectador}
+              conCalendario={conCalendario}
+              sinRevision={SECCIONES[seccionActual].sinRevision === true}
+              conRectificados={seccionConRectificados(seccionActual)}
+            />
           </div>
           {/* Busca en TODO: `pedidos` sin filtrar (con lo de taller, lo
               detenido, lo anulado y lo ya pasado) más el historial de RPS. Cada
               vista enseña un recorte distinto y sin esto encontrar un pedido
               concreto era adivinar en cuál cayó. */}
-          {/* `flex-1` y no `w-full`: sin crecer, el buscador se congelaba en sus
-              512 px y el sitio que faltaba lo pagaban las zonas de los lados,
-              que desbordaban por debajo de él. Creciendo como ellas, el reparto
-              es de los tres y el que cede al estrechar es este, que se encoge
-              por dentro sin romperse. */}
+          {/* En portátil se abre desde la lupa. El campo en línea conserva
+              un ancho mínimo para que se lean la búsqueda y su atajo. */}
           <BuscadorGlobal
-            className="order-4 col-span-2 w-full lg:order-none lg:min-w-36 lg:max-w-lg lg:flex-1"
+            className="order-4 col-span-2 w-full lg:order-none lg:w-auto lg:shrink-0 min-[1440px]:min-w-64 min-[1440px]:max-w-lg min-[1440px]:flex-1"
             pedidos={pedidos}
             nombre={nombreDeOperario}
             onAbrirPedido={abrirPedido}

@@ -1,5 +1,8 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
+import { usePopover } from "@/lib/usePopover";
+
 export type Vista =
   | "asignar"
   | "lista"
@@ -46,6 +49,34 @@ const OPCIONES: { id: Vista; label: string }[] = [
  */
 export const VISTAS: Vista[] = OPCIONES.map((o) => o.id);
 
+export function cuantasPestanasCaben(
+  disponible: number,
+  anchos: readonly number[],
+  anchosDeMas: readonly number[],
+  fijas: number,
+): number {
+  let ancho = anchos.reduce((total, n) => total + n, 0);
+  if (ancho <= disponible) return anchos.length;
+  for (let visibles = anchos.length - 1; visibles >= fijas; visibles--) {
+    ancho -= anchos[visibles];
+    if (ancho + anchosDeMas[visibles] <= disponible) return visibles;
+  }
+  return fijas;
+}
+
+// Se aprieta el padding en portátil: una pestaña sin nombre no se puede usar.
+const PESTANA = "flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-xs font-semibold transition-colors xl:px-3.5";
+const INACTIVA = "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text";
+
+function Contador({ n, activo }: { n?: number; activo: boolean }) {
+  if (!n) return null;
+  return (
+    <span className={`rounded-full px-1.5 text-[10px] font-bold ${activo ? "bg-brand-400/40" : "bg-amber-700 text-white"}`}>
+      {n}
+    </span>
+  );
+}
+
 export function ViewSwitcher({
   vista,
   onChange,
@@ -54,7 +85,9 @@ export function ViewSwitcher({
   sinRevision = false,
   conRectificados = false,
   conCalendario = false,
+  className = "",
 }: {
+  className?: string;
   /** Bizneo conectado: enseñar «Calendario». */
   conCalendario?: boolean;
   /** La sección no tiene revisión (Impresión Digital): sin «Revisiones»,
@@ -68,47 +101,157 @@ export function ViewSwitcher({
   /** Enseñar «Toda la casa», que es solo de Dirección. */
   conCasa?: boolean;
 }) {
-  // p-[3px] y no p-1: el contenedor mide borde (2) + padding×2 + botón (28),
-  // así que con 4 px de padding salían 38 y el resto de la cabecera va a 36.
-  // Con 3 da 36 justos y las tres zonas quedan a la misma altura.
-  // `rounded-lg` como TODOS los demás chips de la cabecera: el buscador, el
-  // conmutador de secciones, quién eres y los botones sueltos son 8 px de radio
-  // y 36 de alto. Esta tira iba a 12 y cantaba al ponerla al lado. El botón de
-  // dentro va a 6, el mismo escalón que usa el conmutador de secciones.
+  const opciones = OPCIONES.filter(({ id }) =>
+    (id !== "casa" || conCasa) &&
+    (id !== "calendario" || conCalendario) &&
+    (id !== "revision" || !sinRevision) &&
+    ((id !== "rectificados" && id !== "solicitudes") || conRectificados),
+  );
+  const fijas = sinRevision ? 2 : 3;
+  const [reparto, setReparto] = useState<{ limite: number; anchoIdeal: number }>();
+  const visibles = Math.max(fijas, Math.min(reparto?.limite ?? opciones.length, opciones.length));
+  const ocultas = opciones.slice(visibles);
+  const activaEnMas = ocultas.some((o) => o.id === vista);
+  const medidas = useRef<HTMLDivElement>(null);
+  const espacio = useRef<HTMLDivElement>(null);
+  const { open, setOpen, ref, panelRef, idPanel } = usePopover<HTMLButtonElement>();
+
+  // El botón «Más» puede ocupar más al elegir una vista o sumar contadores.
+  // Se mide cada corte posible con la misma tipografía y el mismo padding.
+  function contenidoDeMas(desde: number) {
+    const resto = opciones.slice(desde);
+    const elegida = resto.find((o) => o.id === vista);
+    const total = resto.reduce((suma, o) => suma + (badge?.[o.id] ?? 0), 0);
+    return (
+      <>
+        {elegida?.label ?? "Más"}
+        <Contador n={total} activo={!!elegida} />
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="size-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </>
+    );
+  }
+
+  const cantidad = opciones.length;
+  useLayoutEffect(() => {
+    const caja = espacio.current;
+    const regla = medidas.current;
+    if (!caja || !regla) return;
+    const hijos = Array.from(regla.children);
+    function medir() {
+      if (!caja || !regla) return;
+      const { paddingLeft, paddingRight, borderLeftWidth, borderRightWidth, columnGap } = getComputedStyle(regla);
+      const marco = [paddingLeft, paddingRight, borderLeftWidth, borderRightWidth]
+        .reduce((total, px) => total + parseFloat(px), 0);
+      const hueco = parseFloat(columnGap) || 0;
+      const anchos = hijos.map((el) => el.getBoundingClientRect().width + hueco);
+      const limite = cuantasPestanasCaben(
+        caja.getBoundingClientRect().width - marco + hueco,
+        anchos.slice(0, cantidad),
+        [...Array<number>(fijas).fill(0), ...anchos.slice(cantidad)],
+        fijas,
+      );
+      // El flex sigue pidiendo sitio para todas. Si pidiera solo el ancho de
+      // las visibles, al agrandar la ventana nunca volverían las ocultas.
+      const anchoIdeal = Math.ceil(anchos.slice(0, cantidad)
+        .reduce((total, ancho) => total + ancho, marco - hueco));
+      setReparto((antes) => antes?.limite === limite && antes.anchoIdeal === anchoIdeal
+        ? antes
+        : { limite, anchoIdeal });
+    }
+    medir();
+    const observador = new ResizeObserver(medir);
+    observador.observe(caja);
+    // El borde exterior incluye el padding, que también cambia en portátil.
+    // Las fuentes y los contadores pueden cambiar con la ventana quieta.
+    hijos.forEach((hijo) => observador.observe(hijo, { box: "border-box" }));
+    return () => observador.disconnect();
+  }, [cantidad, fijas, conCasa, conCalendario, conRectificados]);
+
+  useLayoutEffect(() => {
+    if (visibles === cantidad && open) setOpen(false);
+  }, [visibles, cantidad, open, setOpen]);
+
   return (
-    <div className="tira-3d glass-chip inline-flex rounded-lg p-[3px]">
-      {OPCIONES.filter((o) => (o.id !== "casa" || conCasa) && (o.id !== "calendario" || conCalendario) && (o.id !== "revision" || !sinRevision) && ((o.id !== "rectificados" && o.id !== "solicitudes") || conRectificados)).map((o) => {
-        const activo = o.id === vista;
-        const n = badge?.[o.id];
-        return (
+    <div ref={espacio} className={`relative max-w-full ${className}`} style={{ width: reparto?.anchoIdeal }}>
+      <div className="tira-3d glass-chip inline-flex rounded-lg p-[3px]">
+        {opciones.slice(0, visibles).map((o) => (
           <button
             key={o.id}
+            type="button"
             data-vista={o.id}
+            aria-current={o.id === vista ? "page" : undefined}
             onClick={() => onChange(o.id)}
-            /* El padding se aprieta por debajo de 1280 px. Son seis pestañas:
-               con `px-3.5` ocupan 473 px, y a esas anchuras la cabecera no da
-               para eso más los botones de la derecha más el buscador. Se toca
-               el aire y no el texto porque no hay iconos que lo sustituyan, y
-               una pestaña sin nombre no se puede usar. */
-            className={`flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors xl:px-3.5 ${
-              activo
-                ? "pestana-activa"
-                : "text-text-muted hover:bg-[var(--glass-highlight)] hover:text-text"
-            }`}
+            className={`${PESTANA} ${o.id === vista ? "pestana-activa" : INACTIVA}`}
           >
             {o.label}
-            {n ? (
-              <span
-                className={`rounded-full px-1.5 text-[10px] font-bold ${
-                  activo ? "bg-brand-400/40" : "bg-amber-700 text-white"
-                }`}
-              >
-                {n}
-              </span>
-            ) : null}
+            <Contador n={badge?.[o.id]} activo={o.id === vista} />
           </button>
-        );
-      })}
+        ))}
+        {ocultas.length > 0 && (
+          // Hijo directo del carril para que la píldora pueda llegar hasta aquí.
+          <button
+            ref={ref}
+            type="button"
+            popoverTarget={idPanel}
+            aria-expanded={open}
+            aria-controls={idPanel}
+            aria-current={activaEnMas ? "page" : undefined}
+            data-sin-transicion
+            className={`${PESTANA} ${activaEnMas ? "pestana-activa" : INACTIVA}`}
+          >
+            {contenidoDeMas(visibles)}
+          </button>
+        )}
+      </div>
+
+      <div
+        ref={panelRef}
+        id={idPanel}
+        popover="auto"
+        role="group"
+        aria-label="Más vistas"
+        onToggle={(e) => {
+          if (e.currentTarget.matches(":popover-open")) {
+            e.currentTarget.querySelector<HTMLButtonElement>("button")?.focus();
+          }
+        }}
+        className="glass-pop m-0 w-max min-w-40 rounded-lg p-1 text-text"
+      >
+        {ocultas.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            data-vista={o.id}
+            aria-current={o.id === vista ? "page" : undefined}
+            onClick={() => {
+              setOpen(false);
+              onChange(o.id);
+            }}
+            className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold hover:bg-surface-2 ${o.id === vista ? "bg-surface-2" : ""}`}
+          >
+            {o.label}
+            <Contador n={badge?.[o.id]} activo={o.id === vista} />
+          </button>
+        ))}
+      </div>
+
+      {/* Fuera del reparto del flex y recortada para que la regla no ensanche
+          la página ni duplique las pestañas para el teclado o el lector. */}
+      <div inert aria-hidden="true" className="invisible absolute inset-0 overflow-hidden">
+        <div ref={medidas} className="tira-3d glass-chip inline-flex rounded-lg p-[3px]">
+          {opciones.map((o) => (
+            <span key={o.id} className={PESTANA}>
+              {o.label}
+              <Contador n={badge?.[o.id]} activo={false} />
+            </span>
+          ))}
+          {opciones.slice(fijas).map((o, i) => (
+            <span key={`mas-${o.id}`} className={PESTANA}>{contenidoDeMas(i + fijas)}</span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

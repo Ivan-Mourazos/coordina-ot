@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { HistorialItem } from "@/lib/historial";
 
 import type { Pedido } from "@/lib/types";
@@ -34,6 +34,23 @@ const COLOR: Record<Ubicacion, string> = {
 };
 
 const ESPERA_MS = 300;
+const VENTANA_COMPACTA = "(64rem <= width < 1440px)";
+
+function suscribirAncho(avisar: () => void) {
+  const media = window.matchMedia(VENTANA_COMPACTA);
+  media.addEventListener("change", avisar);
+  return () => media.removeEventListener("change", avisar);
+}
+
+function Lupa() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 shrink-0 text-text-muted"
+      fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export function BuscadorGlobal({
   pedidos,
@@ -55,13 +72,28 @@ export function BuscadorGlobal({
   const [otros, setOtros] = useState<PedidoEncontrado[]>([]);
   const [cargandoHist, setCargandoHist] = useState(false);
   const [cursor, setCursor] = useState(0);
-  const { open, setOpen, ref, panelRef } = usePopover<HTMLDivElement>({ lado: "ancho" });
+  const compacto = useSyncExternalStore(suscribirAncho, () => window.matchMedia(VENTANA_COMPACTA).matches, () => false);
+  const { open, setOpen, ref, panelRef, idPanel } = usePopover<HTMLDivElement>({
+    lado: "ancho",
+    colocar: compacto ? (caja, panel) => {
+      const borde = document.documentElement.getBoundingClientRect().right;
+      const ancho = 384;
+      panel.style.width = `${ancho}px`;
+      panel.style.left = `${Math.min(caja.left, borde - ancho - 8)}px`;
+      panel.style.top = `${caja.bottom + 6}px`;
+    } : undefined,
+  });
   // Con menos letras no se busca, y el panel abierto saldría vacío.
   const hayConsulta = (texto: string) => texto.trim().length >= MIN_LETRAS;
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const botonRef = useRef<HTMLButtonElement | null>(null);
   // Descarta respuestas que llegan tarde: al escribir rápido se solapan varias
   // consultas y la vieja no puede pisar a la nueva.
   const seq = useRef(0);
+
+  useLayoutEffect(() => {
+    if (panelRef.current?.matches(":popover-open")) setOpen(false);
+  }, [compacto, panelRef, setOpen]);
 
   // Ctrl/⌘+K desde cualquier sitio. Es lo que la gente prueba sin que nadie se
   // lo diga, y ahorra ir al ratón para lo que más se hace.
@@ -69,13 +101,17 @@ export function BuscadorGlobal({
     function onKey(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        inputRef.current?.focus();
-        inputRef.current?.select();
+        if (compacto && !panelRef.current?.matches(":popover-open")) {
+          botonRef.current?.click();
+        } else {
+          inputRef.current?.focus();
+          inputRef.current?.select();
+        }
       }
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, []);
+  }, [compacto, panelRef]);
 
   useEffect(() => {
     // Sin vaciar `historial` aquí: eso sería un setState dentro del efecto (y
@@ -134,7 +170,7 @@ export function BuscadorGlobal({
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      setOpen(hayConsulta(q));
+      if (!compacto) setOpen(hayConsulta(q));
       const paso = e.key === "ArrowDown" ? 1 : -1;
       setCursor((c) => {
         const n = resultados.length;
@@ -143,23 +179,17 @@ export function BuscadorGlobal({
     } else if (e.key === "Enter" && resultados[activo]) {
       e.preventDefault();
       elegir(resultados[activo]);
-    } else if (e.key === "Escape") {
+    } else if (e.key === "Escape" && !compacto) {
       setOpen(false);
       inputRef.current?.blur();
     }
   }
 
-  return (
-    <div ref={ref} className={`relative min-w-0 ${className}`}>
-      {/* h-9 = los 36 px de las pestañas (ViewSwitcher) y de los botones de la
-          derecha (size-9). Con el padding suelto se quedaba en 28 y la cabecera
-          tenía tres alturas distintas en fila. */}
+  // En portátil el mismo campo vive dentro del panel: gana espacio para
+  // escribir y buscar sin quitar sitio a las pestañas de la cabecera.
+  const campo = (
       <div className="campo-hundido flex h-9 items-center gap-2 rounded-lg px-3">
-        <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 shrink-0 text-text-muted"
-          fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" strokeLinecap="round" />
-        </svg>
+        <Lupa />
         <input
           autoComplete="off"
           ref={inputRef}
@@ -167,14 +197,14 @@ export function BuscadorGlobal({
           onChange={(e) => {
             setQ(e.target.value);
             setCursor(0);
-            setOpen(hayConsulta(e.target.value));
+            if (!compacto) setOpen(hayConsulta(e.target.value));
           }}
-          onFocus={() => setOpen(hayConsulta(q))}
+          onFocus={() => { if (!compacto) setOpen(hayConsulta(q)); }}
           // El campo queda fuera del popover: pinchar en él lo cierra como
           // "clic fuera" y aquí se vuelve a abrir, en el mismo fotograma. Sin
           // esto, pinchar en el campo para seguir escribiendo dejaba la lista
           // cerrada (el foco ya estaba dentro y `onFocus` no salta).
-          onClick={() => setOpen(hayConsulta(q))}
+          onClick={() => { if (!compacto) setOpen(hayConsulta(q)); }}
           onKeyDown={onKeyDown}
           role="combobox"
           aria-expanded={abierto}
@@ -194,7 +224,7 @@ export function BuscadorGlobal({
           <button
             onClick={() => {
               setQ("");
-              setOpen(false);
+              if (!compacto) setOpen(false);
               inputRef.current?.focus();
             }}
             aria-label="Limpiar"
@@ -202,7 +232,7 @@ export function BuscadorGlobal({
           >
             ✕
           </button>
-        ) : (
+        ) : !compacto && (
           /* El recordatorio del atajo se retira en ventanas estrechas: son 34
              px que ahí hacen falta para que se lea lo que se escribe, y quien
              use el atajo ya se lo sabe. */
@@ -211,15 +241,41 @@ export function BuscadorGlobal({
           </kbd>
         )}
       </div>
+  );
 
+  return (
+    <div ref={ref} className={`relative min-w-0 ${className}`}>
+      {compacto ? (
+        <button
+          ref={botonRef}
+          type="button"
+          popoverTarget={idPanel}
+          aria-expanded={open}
+          aria-controls={idPanel}
+          aria-label="Buscar pedidos"
+          aria-keyshortcuts="Control+K Meta+K"
+          className="glass-chip flex h-9 items-center gap-2 rounded-lg px-3"
+        >
+          <Lupa />
+          <kbd className="whitespace-nowrap text-[10px] font-semibold text-text-muted">Ctrl K</kbd>
+        </button>
+      ) : campo}
       {/* Popover montado siempre; lo abre y cierra `setOpen` (usePopover.ts).
-          Lo de dentro se pinta solo abierto. */}
+          En portátil también contiene el campo, incluso sin consulta. */}
       <div
         ref={panelRef}
-        id="buscador-global-resultados"
+        id={idPanel}
         popover="auto"
+        onToggle={(e) => {
+          if (compacto && e.currentTarget.matches(":popover-open")) {
+            inputRef.current?.focus();
+            inputRef.current?.select();
+          }
+        }}
         className="glass-pop rounded-xl p-1 text-text"
       >
+      {compacto && campo}
+      <div id="buscador-global-resultados">
       {abierto && (
         <>
           {resultados.length === 0 ? (
@@ -268,6 +324,7 @@ export function BuscadorGlobal({
           )}
         </>
       )}
+      </div>
       </div>
     </div>
   );

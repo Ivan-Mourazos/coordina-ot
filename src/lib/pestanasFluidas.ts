@@ -18,7 +18,7 @@ import { flushSync } from "react-dom";
 // cambian de vista sin ser pestañas (Planteamientos e29d33e, 27/10/2026).
 const PESTANA =
   ':is(:is(.tira-3d, [role="tablist"]):not(form *, [data-sin-transicion]) > button, button[data-cambio-fluido])' +
-  ':not(.pestana-activa, .glass-chip-activo, .is-active, [aria-selected="true"], [aria-pressed="true"], [aria-current="true"], :disabled)';
+  ':not(.pestana-activa, .glass-chip-activo, .is-active, [aria-selected="true"], [aria-pressed="true"], [aria-current="true"], [data-sin-transicion], :disabled)';
 
 let repitiendo = false;
 let actual: ViewTransition | undefined;
