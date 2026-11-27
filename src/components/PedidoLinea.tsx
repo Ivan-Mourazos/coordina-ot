@@ -226,8 +226,32 @@ export function PedidoLinea({
   // Avisos en píldora, en minúscula y sin negrita gruesa, como el estado de la
   // OF en la ficha (estilo HeroUI, Iván 27/11/2026). Conservan su color: ámbar
   // o rojo es lo que avisa.
+  // Las marcas de la fila: alguien fichando (punto) y parado del todo (pausa).
+  // Van al principio de la columna del cliente, que es la que se encoge, para
+  // no mover el código ni las columnas alineadas.
+  const hayMarcas = !!fichandoAlguien || detenidoDelTodo;
+  const marcas = (
+    <>
+      {fichandoAlguien && (
+        <span
+          title={fichandoYo.length > 0 ? "Lo estás fichando tú" : "Alguien lo está fichando ahora"}
+          className={`size-1.5 shrink-0 rounded-full ring-2 ${
+            fichandoAlguien.fichandoRol === "revisar"
+              ? "bg-violet-500 ring-violet-500/30"
+              : "bg-emerald-500 ring-emerald-500/30"
+          }`}
+        />
+      )}
+      {detenidoDelTodo && (
+        <span title="Detenido por Producción" className="inline-flex shrink-0">
+          <IconoPausa className="size-3 text-amber-800 dark:text-amber-300" />
+        </span>
+      )}
+    </>
+  );
   const avisos = (
     <>
+      {marcas}
       {/* En estrecho va junto a la planificada, solo la fecha. */}
       <ChipComprometida pedido={pedido} className="shrink-0 @max-[30rem]:hidden" />
       {/* Han vuelto a escanear el parte y nadie lo ha dado por visto. Va en
@@ -349,7 +373,7 @@ export function PedidoLinea({
       // derecha ("2 O"). La forma la da la fila, no este botón.
       // Sin `truncate`: el número de pedido es lo más importante y nunca se
       // corta ni se esconde.
-      className={`flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-none! text-left ${
+      className={`flex shrink-0 cursor-pointer items-center whitespace-nowrap rounded-none! text-left ${
         mostrandoFalta
           ? ""
           : eligiendoRevisor
@@ -357,20 +381,10 @@ export function PedidoLinea({
             : "col-start-1 row-start-1"
       }`}
     >
-      {/* Columna 1: el punto de "lo están fichando" y el código. */}
-      {fichandoAlguien && (
-        <span
-          title={fichandoYo.length > 0 ? "Lo estás fichando tú" : "Alguien lo está fichando ahora"}
-          className={`size-1.5 shrink-0 rounded-full ring-2 ${
-            fichandoAlguien.fichandoRol === "revisar"
-              ? "bg-violet-500 ring-violet-500/30"
-              : "bg-emerald-500 ring-emerald-500/30"
-          }`}
-        />
-      )}
-      {detenidoDelTodo && (
-        <IconoPausa className="size-3 shrink-0 text-amber-800 dark:text-amber-300" />
-      )}
+      {/* Columna 1: SOLO el código. El punto de fichando y la pausa de
+          detenido iban delante y corrían el código —y con él la fila entera—
+          a la derecha; ahora van con los avisos, delante del cliente (Iván,
+          27/11/2026). */}
       <b
         className={`font-semibold tabular-nums ${
           detenidoDelTodo ? "text-text-muted" : "text-text"
@@ -385,6 +399,9 @@ export function PedidoLinea({
     <div
       // Lo busca lib/paseAnimado.ts para hacer volar la fila al pasarla.
       data-pedido={pedido.id}
+      // Para alinear la lista entera (ver `.filas-alineadas` en globals.css):
+      // la fila con más familias fija el ancho de esa columna en todas.
+      data-familias={Math.min(familias.length, 8)}
       onClick={() => onOpen(facet)}
       {...resumen.handlers}
       // Ámbar y NO rojo: el rojo es de "urgente" en toda la app, y un pedido
@@ -433,12 +450,12 @@ export function PedidoLinea({
             ? "flex h-5 items-center gap-2"
             : eligiendoRevisor
               ? "flex items-start gap-x-2 gap-y-1.5 @max-[30rem]:flex-col @max-[30rem]:items-stretch"
-              : "grid h-5 items-center gap-x-1.5 grid-cols-[minmax(5rem,max-content)_3.5rem_minmax(0,26rem)_auto_auto_minmax(max-content,1fr)] @max-[34rem]:grid-cols-[minmax(5rem,max-content)_3.5rem_minmax(0,26rem)_auto_auto_minmax(max-content,1fr)] @max-[30rem]:flex @max-[30rem]:items-center @max-[30rem]:gap-1.5"
+              : "grid h-5 items-center gap-x-1.5 grid-cols-[var(--fila-col-codigo,minmax(5rem,max-content))_var(--fila-col-familias,3.5rem)_minmax(0,26rem)_auto_auto_minmax(max-content,1fr)] @max-[34rem]:grid-cols-[var(--fila-col-codigo,minmax(5rem,max-content))_var(--fila-col-familias,3.5rem)_minmax(0,26rem)_auto_auto_minmax(max-content,1fr)] @max-[30rem]:flex @max-[30rem]:items-center @max-[30rem]:gap-1.5"
         }
       >
         {mostrandoFalta ? (
           <>
-            {botonCodigo}
+            {botonCodigo}{marcas}
             {/* Lo tuyo está hecho pero el pedido va entero a Producción: se dice a
                 quién se espera, en el hueco de la descripción. */}
             <span
@@ -452,7 +469,7 @@ export function PedidoLinea({
           <>
             {/* En estrecho la primera línea queda solo con el código y los
                 compañeros van debajo ocupando todo el ancho sin scroll. */}
-            {botonCodigo}
+            {botonCodigo}{marcas}
             <div
               className="min-w-0 flex-1 @max-[30rem]:w-full"
               onClick={(e) => e.stopPropagation()}
@@ -497,7 +514,7 @@ export function PedidoLinea({
                 quedan como chips cortos en la misma línea. */}
             <span
               className={`col-start-3 row-start-1 flex min-w-0 items-center gap-1.5 overflow-hidden ${
-                hayAvisos
+                hayAvisos || hayMarcas
                   ? `@max-[30rem]:shrink-0 @max-[30rem]:gap-1 @max-[9.5rem]:hidden`
                   : "@max-[30rem]:hidden"
               }`}

@@ -138,7 +138,7 @@ export function PanelFlotante({
         if (cerrando) ref.current?.close();
       }}
       style={{ background: "var(--surface)", width: `min(${ANCHO}, 92vw)` }}
-      className={`panel-flotante scroll-thin inset-x-0 top-24 bottom-auto mx-auto my-0 max-h-[60vh] max-w-none overflow-y-auto rounded-xl border-0 p-3 text-text ${
+      className={`panel-flotante scroll-thin inset-x-0 top-24 bottom-auto mx-auto my-0 max-h-[calc(100dvh-6.75rem)] max-w-none overflow-y-auto rounded-xl border-0 p-3 text-text ${
         cerrando ? "pop-out" : "glass-pop"
       }`}
     >

@@ -63,7 +63,7 @@ export function FaseFlyout({
             seco y se saltaría la animación de salida. */}
         <BotonCerrarPanel className="ml-auto" />
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="filas-alineadas flex flex-col gap-1">
         {grupo.items.map((f) => (
           <PedidoLinea
             key={f.pedido.id}

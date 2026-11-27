@@ -639,6 +639,27 @@ body {
   box-shadow: var(--fila-sombra);
 }
 
+/* Listas de pedidos (PedidoLinea) alineadas en vertical aunque vayan en
+   bloques distintos (Iván, 27/11/2026). Cada fila es su propia rejilla, así
+   que la columna de las familias toma el ancho de aquí: el que pide la fila
+   con más familias. Sin familias de más, el cliente queda pegado a la
+   familia; con una fila de tres, todas se abren igual. Reglas en orden
+   creciente: gana la mayor presente. El código tiene ancho fijo: las marcas
+   (fichando, detenido) ya no van delante de él sino delante del cliente. */
+.filas-alineadas {
+  --fila-familias: 1;
+  /* Cada icono de familia 14 px + 4 de hueco. */
+  --fila-col-familias: calc(var(--fila-familias) * 1.125rem - 0.25rem);
+  --fila-col-codigo: minmax(4.75rem, max-content);
+}
+.filas-alineadas:has([data-familias="2"]) { --fila-familias: 2; }
+.filas-alineadas:has([data-familias="3"]) { --fila-familias: 3; }
+.filas-alineadas:has([data-familias="4"]) { --fila-familias: 4; }
+.filas-alineadas:has([data-familias="5"]) { --fila-familias: 5; }
+.filas-alineadas:has([data-familias="6"]) { --fila-familias: 6; }
+.filas-alineadas:has([data-familias="7"]) { --fila-familias: 7; }
+.filas-alineadas:has([data-familias="8"]) { --fila-familias: 8; }
+
 /* Fondo y filo de `--fila`, no del vidrio: la ficha es vidrio casi blanco y
    un bloque de `--glass-chip` con filo `--glass-border` salía blanco sobre
    blanco con filo blanco (1,05:1). No se veía dónde acababa una OF y

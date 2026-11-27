@@ -318,6 +318,18 @@ html[data-estilo="hero"]:root :is(.glass-chip, .chip-3d, .boton-3d,
 html[data-estilo="hero"]:root :is(.glass-chip, .chip-3d):active:not(:disabled) {
   background-color: var(--hero-relleno-pulsado);
 }
+/* En oscuro la FILA ya es `--hero-relleno` (ver `.fila-sombra`): un botón
+   neutro («Coger», «Devolver») del mismo gris desaparecía y solo se leía el
+   texto (Iván, 27/11/2026). Dentro de la fila, dos escalones más claro. */
+html[data-estilo="hero"].dark:root .fila-sombra :is(button.glass-chip, button.chip-3d) {
+  background-color: #4a4a52;
+}
+html[data-estilo="hero"].dark:root .fila-sombra :is(button.glass-chip, button.chip-3d):hover:not(:disabled) {
+  background-color: #56565f;
+}
+html[data-estilo="hero"].dark:root .fila-sombra :is(button.glass-chip, button.chip-3d):active:not(:disabled) {
+  background-color: #62626b;
+}
 /* scale es independiente de transform: conserva el centrado de botones
    absolutos, de los menús y del calendario. */
 html[data-estilo="hero"] :where(button, a[role="button"]) {

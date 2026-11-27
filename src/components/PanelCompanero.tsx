@@ -93,7 +93,7 @@ export function PanelCompanero({
         // pedido se recortaba o desaparecía, y aquí se viene justo a ver en qué
         // anda un compañero. A lo ancho solo caben tres o cuatro fases; a lo
         // largo caben todas, y el panel ya tiene su propio scroll.
-        <div className="flex flex-col gap-2.5">
+        <div className="filas-alineadas flex flex-col gap-2.5">
           {conItems.map((g) => (
             // Caja tintada del color de la fase y cabecera en su tinta: las
             // filas destacan sobre ella (ver `fondoGrupo`).

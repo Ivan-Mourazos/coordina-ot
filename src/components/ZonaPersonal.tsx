@@ -144,7 +144,7 @@ export function ZonaPersonal({
       {sinNada ? (
         <p className="py-2 text-[11px] text-text-muted bajo:hidden">Sin pedidos asignados.</p>
       ) : (
-        <div className="flex flex-wrap items-start gap-3">
+        <div className="filas-alineadas flex flex-wrap items-start gap-3">
           {/* La primera, delante incluso de "A corregir": son las dos columnas
               donde hay un compañero esperándote. Como las demás, sin nada que
               revisar no ocupa sitio. */}
