@@ -3562,7 +3562,7 @@ export function Board({
                     </div>
                   );
                 })()}
-                <div className="-mx-1 flex max-h-64 flex-col gap-2 overflow-y-auto p-1">
+                <div className="-mx-1 flex max-h-[55vh] flex-col gap-2 overflow-y-auto p-1">
                   {listaPase.map(({ of, elegible, motivo }) => {
                     // Las de otro autor van si se pasa todo y se quedan si no:
                     // sueltas solo las cierra quien las lleva.

@@ -28,7 +28,8 @@ import { NoConformidadesPedido } from "./NoConformidadesPedido";
 import { HojaAlmacenPedido } from "./HojaAlmacenPedido";
 import { TareasDelPedido } from "./HistorialTareas";
 import { PedirRevisor } from "./PedirRevisor";
-import { useConfirmacion } from "./ConfirmDialog";
+import { ConfirmDialog, useConfirmacion } from "./ConfirmDialog";
+import { CasillaFila } from "./CasillaFila";
 import { Select, OpDot, type SelectOption } from "./Select";
 import {
   ACCIONES,
@@ -354,6 +355,8 @@ export function Drawer({
   // donde tienen que estar todos —debajo hay un `return` temprano—.
   const idsAConfirmar = useRef<string[]>([]);
   const confirmacionPedido = useConfirmacion((a) => onAccion(idsAConfirmar.current, a.id));
+  const [eligiendoFichar, setEligiendoFichar] = useState(false);
+  const [marcadasFichar, setMarcadasFichar] = useState<ReadonlySet<string>>(new Set());
   // La de «Impreso» (Impresión Digital), aparte: no es una acción de OF que
   // pase por `onAccion`, sino aprobar y pasar el pedido entero. El pedido se
   // congela al pulsar, por lo mismo que `idsAConfirmar`.
@@ -574,16 +577,16 @@ export function Drawer({
     ...ACCIONES.find((a) => a.id === "aprobar_corregida")!,
     confirmar: `Las ${paraCorregir.length} OF quedan aprobadas sin pasar otra vez por revisión.`,
   };
-  // Las mías en curso que no llevan revisión. Mismo atajo que "Dar por
-  // corregidas", pero para la primera vuelta: un parte entero de trabajo sin
-  // revisión había que cerrarlo OF por OF desde el "⋯" de cada una.
-  const paraSinRevision = ofsDeOT.filter((o) =>
-    accionesDe(o).some((a) => a.id === "aprobar_sin_revision"),
-  );
-  const defSinRevision = {
-    ...ACCIONES.find((a) => a.id === "aprobar_sin_revision")!,
-    confirmar: `Las ${paraSinRevision.length} OF quedan aprobadas SIN que nadie las revise, y el pedido podrá pasar a Producción. Para trabajo que no lleva revisión; si tiene que verlo otra persona, usa "Pasar a revisión".`,
-  };
+  // «Dar por buenas las N sin revisión» ya no está en el "⋯" del pedido
+  // (Iván, 27/11/2026): en su sitio, «Fichar en varias…». Una a una sigue en
+  // el "⋯" de cada OF.
+
+  // «Fichar en varias…»: elegir en qué OF de planteo se pone el reloj, sin ir
+  // una por una. De serie, las mías sin aprobar (lo mismo que «Fichar las N»);
+  // las aprobadas (un retoque) y las de otra persona (echar una mano) salen
+  // sin marcar. Las que ya corren en mi reloj, apagadas.
+  const paraFicharLista = fichablesDeOT;
+  const libresParaFichar = paraFicharLista.filter((o) => !ofIdsFichandoYo?.has(o.id));
   // Impresión Digital: un solo gesto, «Impreso», que aprueba y pasa (ver
   // lib/impreso.ts). Solo existe donde el Board lo ofrece. Con él, los botones
   // de bloque de "Pasar a revisión" y "Dar por buenas sin revisión" no salen:
@@ -848,6 +851,69 @@ export function Drawer({
       encima={
         <>
           {confirmacionPedido.dialogo}
+          <ConfirmDialog
+            abierto={eligiendoFichar}
+            titulo={`Fichar en OF de ${pedido.codigo}`}
+            ancho
+            textoConfirmar={marcadasFichar.size > 1 ? `Fichar las ${marcadasFichar.size}` : "Fichar"}
+            confirmarDesactivado={marcadasFichar.size === 0}
+            mensaje={
+              <>
+                <p className="text-sm text-text">
+                  Marca las OF en las que vas a trabajar: tu reloj se pone en marcha en todas a la vez.
+                </p>
+                <section className="mt-4 rounded-2xl bg-[var(--recuadro)] p-3">
+                  <h4 className="mb-1 text-[11px] font-semibold text-text-muted">En qué OF fichas</h4>
+                  <div className="mb-2 flex items-center gap-3 text-[11px]">
+                    <span className="text-text-muted">{marcadasFichar.size} de {libresParaFichar.length} marcadas</span>
+                    <span className="ml-auto flex gap-1">
+                      <button type="button" className="chip-3d rounded-full px-2.5 py-0.5 font-semibold text-text disabled:opacity-40" disabled={marcadasFichar.size === libresParaFichar.length} onClick={() => setMarcadasFichar(new Set(libresParaFichar.map((o) => o.id)))}>
+                        Marcar todas
+                      </button>
+                      <button type="button" className="chip-3d rounded-full px-2.5 py-0.5 font-semibold text-text disabled:opacity-40" disabled={marcadasFichar.size === 0} onClick={() => setMarcadasFichar(new Set())}>
+                        Ninguna
+                      </button>
+                    </span>
+                  </div>
+                  <div className="-mx-1 flex max-h-[55vh] flex-col gap-2 overflow-y-auto p-1">
+                    {paraFicharLista.map((o) => {
+                      const yaLaFicho = !!ofIdsFichandoYo?.has(o.id);
+                      const autor = !esMiaOLibre(o) ? (operarios.find((x) => x.id === o.autorId)?.nombre ?? "otra persona") : null;
+                      return (
+                        <CasillaFila
+                          key={o.id}
+                          marcada={yaLaFicho || marcadasFichar.has(o.id)}
+                          desactivada={yaLaFicho}
+                          onCambiar={(marcar) =>
+                            setMarcadasFichar((prev) => {
+                              const m = new Set(prev);
+                              if (marcar) m.add(o.id);
+                              else m.delete(o.id);
+                              return m;
+                            })
+                          }
+                        >
+                          <span className="flex min-w-0 items-baseline gap-1.5">
+                            <b className="shrink-0 font-semibold">{o.codigo}</b>
+                            {o.descripcion && <span className="truncate text-text-muted">{o.descripcion}</span>}
+                          </span>
+                          {yaLaFicho && <span className="mt-0.5 block">Ya la estás fichando</span>}
+                          {!yaLaFicho && autor && <span className="mt-0.5 block">De {autor}: le echas una mano, sigue siendo suya</span>}
+                          {!yaLaFicho && o.estado === "aprobada" && <span className="mt-0.5 block">Aprobada: para un retoque</span>}
+                        </CasillaFila>
+                      );
+                    })}
+                  </div>
+                </section>
+              </>
+            }
+            onConfirmar={() => {
+              const ids = [...marcadasFichar];
+              setEligiendoFichar(false);
+              if (ids.length > 0) onFichar(ids, "plantear");
+            }}
+            onCancelar={() => setEligiendoFichar(false)}
+          />
           {confirmacionImpreso.dialogo}
         </>
       }
@@ -1195,6 +1261,21 @@ export function Drawer({
                           },
                         ]
                       : []),
+                    ...(!soloLectura && libresParaFichar.length >= 2
+                      ? [
+                          {
+                            id: "fichar-varias",
+                            label: "Fichar en varias…",
+                            title: "Eliges en qué OF del pedido se pone tu reloj",
+                            onClick: () => {
+                              setMarcadasFichar(new Set(
+                                libresParaFichar.filter((o) => o.estado !== "aprobada" && esMiaOLibre(o)).map((o) => o.id),
+                              ));
+                              setEligiendoFichar(true);
+                            },
+                          },
+                        ]
+                      : []),
                     ...(fichandoYo.length <= 1 && fichablesMias.length <= 1 && fichablesAjenas.length > 1
                       ? [
                           {
@@ -1214,19 +1295,6 @@ export function Drawer({
                             onClick: () => {
                               idsAConfirmar.current = paraCorregir.map((o) => o.id);
                               confirmacionPedido.pedirConfirmacion(defCorregidas);
-                            },
-                          },
-                        ]
-                      : []),
-                    ...(!onImpreso && paraSinRevision.length >= 2
-                      ? [
-                          {
-                            id: "sin-revision",
-                            label: etiquetaCantidad("Dar por buenas", paraSinRevision.length, "sin revisión"),
-                            title: "Aprobadas sin que nadie las revise",
-                            onClick: () => {
-                              idsAConfirmar.current = paraSinRevision.map((o) => o.id);
-                              confirmacionPedido.pedirConfirmacion(defSinRevision);
                             },
                           },
                         ]
