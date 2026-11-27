@@ -1,4 +1,5 @@
 import type { SeccionId } from "./secciones";
+import type { InfoDevolucion } from "./devolucion";
 
 // ─── Modelo de dominio CoordinaOT ───────────────────────────────────────────
 // Lo que se escanea y llega de Producción a Oficina Técnica es un PEDIDO (AR...).
@@ -301,6 +302,9 @@ export interface OF {
   revisorId: string | null;
   estado: EstadoOF;
   observacion?: string; // motivo si fue devuelta
+  /** Quién la devolvió, cuándo, en qué vuelta va y lo marcado como corregido.
+   *  Solo mientras hay corrección que enseñar (ver `correccionDe`). */
+  devolucion?: InfoDevolucion;
   /** ¿Ha llegado a estar en revisión alguna vez? Se enciende al pasar a
    *  `en_revision` y ya no se apaga.
    *

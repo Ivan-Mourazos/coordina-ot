@@ -1,5 +1,6 @@
 import type { Tablero } from "../data";
 import type { EstadoOF, Situacion } from "../types";
+import type { InfoDevolucion } from "../devolucion";
 
 // ─── Overlay: lo que CoordinaOT sabe y RPS no ────────────────────────────────
 // PASAR A PRODUCCIÓN NO ES PARA SIEMPRE. La marca de completado se guarda por
@@ -54,6 +55,9 @@ export interface Overlay {
   /** Pedidos que se volvieron a plantear desde el Historial y siguen sin
    *  pasarse otra vez (filas `recuperada` de `of_retenida`). */
   recuperados?: ReadonlySet<string>;
+  /** Por id de OF, solo las que tienen una corrección que enseñar: quién la
+   *  devolvió, cuándo, en qué vuelta va y qué lleva marcado el autor. */
+  devoluciones?: ReadonlyMap<string, InfoDevolucion>;
 }
 
 export const ESTADOS_OF: ReadonlySet<string> = new Set([
@@ -123,6 +127,7 @@ export function aplicarOverlay(tablero: Tablero, overlay: Overlay): Tablero {
           observacion: o.observacion ?? undefined,
           revisada: o.revisada ?? false,
           cerradaRps: o.cerradaRps ?? undefined,
+          devolucion: overlay.devoluciones?.get(of.id),
         };
         // EL RESTO DE «PLANTEAR EN TALLER». Un toldo de fachada trae dos
         // tareas de OT, y cuando la del archivo de corte llega al 100 % RPS

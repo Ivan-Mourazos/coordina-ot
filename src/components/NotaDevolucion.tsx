@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { leerDevolucion, puntosDeCorreccion } from "@/lib/devolucion";
+import { huellaNota, leerDevolucion, puntosDeCorreccion, type InfoDevolucion } from "@/lib/devolucion";
+import { fmtCuandoNota } from "@/lib/nota-pedido";
 
 /** «Qué corregir»: la nota del revisor cuando devuelve, para el AUTOR.
  *
@@ -18,14 +19,20 @@ import { leerDevolucion, puntosDeCorreccion } from "@/lib/devolucion";
  *  · YA REENVIADA (`enviada`), SE PLIEGA EN GRIS: «Corrección enviada · 2
  *    puntos». Antes seguía en rojo, con casillas, cuando ya estaba en revisión.
  *
- *  Las casillas siguen siendo SOLO VISUALES y de este navegador (lo pidió un
- *  técnico el 22/10/2026). Guardarlas en el servidor es la fase 2. */
+ *  Las casillas son SOLO INFORMATIVAS (lo pidió un técnico el 22/10/2026, e
+ *  Iván lo dejó claro el 27/11/2026): no bloquean pasar a revisión ni nada.
+ *  Desde la fase 2 se guardan en el servidor (`OF.devolucion.hechas`), así que
+ *  son las mismas desde cualquier PC y para quien coja la OF después. Sin ese
+ *  dato (una pantalla que no lo pase) siguen en el navegador, como antes. */
 export function NotaDevolucion({
   observacion,
   className = "",
   marcarComo,
   enviada = false,
   abrirEnviada = false,
+  devolucion,
+  devueltaPor,
+  operarioId,
 }: {
   observacion: string;
   className?: string;
@@ -37,14 +44,24 @@ export function NotaDevolucion({
   enviada?: boolean;
   /** Ya enviada, pero abierta de entrada (el revisor que la va a repasar). */
   abrirEnviada?: boolean;
+  /** Quién, cuándo, qué vuelta y lo marcado, del servidor (fase 2). */
+  devolucion?: InfoDevolucion;
+  /** El nombre de quien la devolvió, ya resuelto. */
+  devueltaPor?: string;
+  /** Quien marca, para el servidor cuando el login está apagado. */
+  operarioId?: string;
 }) {
   const { nota } = leerDevolucion(observacion);
   const { puntos, extra } = puntosDeCorreccion(nota);
-  const clave = marcarComo ? `coordina:corregido:${marcarComo}:${huella(observacion)}` : null;
+  const clave = marcarComo ? `coordina:corregido:${marcarComo}:${huellaNota(observacion)}` : null;
+  // Lo del servidor manda; si no trae nada, lo que hubiera en este navegador
+  // (las marcas de antes de la fase 2 no se pierden).
+  const deEntrada = (): ReadonlySet<number> =>
+    devolucion?.hechas.length ? new Set(devolucion.hechas) : leerHechas(clave);
   // Con su clave al lado: si llega otra devolución con el componente montado,
   // las marcas de la vieja no se le pasan a la nueva.
-  const [marcas, setMarcas] = useState(() => ({ clave, hechas: leerHechas(clave) }));
-  const hechas = marcas.clave === clave ? marcas.hechas : leerHechas(clave);
+  const [marcas, setMarcas] = useState<{ clave: string | null; hechas: ReadonlySet<number> } | null>(null);
+  const hechas = marcas && marcas.clave === clave ? marcas.hechas : deEntrada();
   const [releer, setReleer] = useState(abrirEnviada);
   const alternar = (i: number) => {
     const nuevas = new Set(hechas);
@@ -55,6 +72,15 @@ export function NotaDevolucion({
       else localStorage.removeItem(clave!);
     } catch {
       // Sin almacenamiento (navegación privada): las marcas duran hasta cerrar.
+    }
+    // Al servidor, si la pantalla trae el dato. Si falla, se queda en este
+    // navegador: es información, no hay nada que deshacer.
+    if (devolucion && marcarComo) {
+      void fetch("/api/revision/correccion", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ofId: marcarComo, hechas: [...nuevas], operarioId }),
+      }).catch(() => {});
     }
   };
 
@@ -103,6 +129,14 @@ export function NotaDevolucion({
           </span>
         )}
       </div>
+      {/* Quién, cuándo y qué vuelta: para saber a quién preguntar y si ya es
+          la segunda vez que vuelve. */}
+      {devolucion && (
+        <p className="text-[11px] text-text-muted">
+          Devuelta{devueltaPor ? ` por ${devueltaPor}` : ""} · {fmtCuandoNota(devolucion.at, new Date().toISOString())}
+          {devolucion.vuelta > 1 && <span className="font-semibold text-error"> · {devolucion.vuelta}.ª vuelta</span>}
+        </p>
+      )}
 
       {n > 0 && (
         <ul className="mt-1 space-y-1">
@@ -155,13 +189,6 @@ export function NotaDevolucion({
 /** Cuántos puntos trae una devolución, para el aviso del pedido. */
 export function puntosDeLaNota(observacion: string | null | undefined): number {
   return puntosDeCorreccion(leerDevolucion(observacion).nota).puntos.length;
-}
-
-/** Un resumen corto de la nota para la clave: otra nota, otra lista. */
-function huella(texto: string): string {
-  let h = 0;
-  for (let i = 0; i < texto.length; i++) h = (h * 31 + texto.charCodeAt(i)) | 0;
-  return (h >>> 0).toString(36);
 }
 
 function leerHechas(clave: string | null): ReadonlySet<number> {

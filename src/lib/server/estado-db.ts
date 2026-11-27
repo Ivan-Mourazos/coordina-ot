@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { ESTADOS_OF, type CambioOF, type Overlay } from "./overlay";
-import { claveDeCausa } from "../devolucion";
+import { claveDeCausa, correccionDe, huellaNota, type InfoDevolucion } from "../devolucion";
 import type { MarcaRectificado } from "../rectificados";
 import type { FilaOverlayConSeccion, FilaOverlayOf } from "@/lib/integracion";
 import type { MovimientoRegistrado } from "../metricas";
@@ -329,6 +329,7 @@ function abrir(): Database.Database {
   prepararMetrosAvisoLona(db);
   prepararComentarioMarca(db);
   prepararNotaPublica(db);
+  prepararCorreccionHecha(db);
   migrar(db);
   globalThis.__coordinaDb = db;
   return db;
@@ -409,6 +410,28 @@ function prepararComentarioMarca(db: Database.Database): void {
 /** Para quién es una nota (19/10/2026): 0 = solo OT, 1 = para todos, y
  *  entonces la ve también la consulta sin sesión. Las de antes quedan en 0:
  *  nadie las escribió pensando que las leería alguien de fuera. */
+/** Fase 2 de la vista del autor (27/11/2026). Solo AÑADE: una tabla nueva y
+ *  un índice; no toca filas existentes.
+ *
+ *  · `correccion_hecha`: las casillas de «Qué corregir», hasta ahora en el
+ *    navegador (se perdían al cambiar de PC o de autor). Atadas a la huella de
+ *    la nota: otra devolución, otra lista.
+ *  · el índice de `acciones_log.motivo`, para encontrar las devoluciones sin
+ *    recorrer el registro entero en cada lectura del tablero. */
+function prepararCorreccionHecha(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS correccion_hecha (
+      of_id       TEXT NOT NULL,
+      huella      TEXT NOT NULL,
+      indice      INTEGER NOT NULL,
+      operario_id TEXT,
+      at          TEXT NOT NULL,
+      PRIMARY KEY (of_id, huella, indice)
+    );
+    CREATE INDEX IF NOT EXISTS acciones_log_motivo ON acciones_log (motivo);
+  `);
+}
+
 function prepararNotaPublica(db: Database.Database): void {
   const columnas = db.prepare("PRAGMA table_info(nota_pedido)").all() as Array<{ name: string }>;
   if (columnas.some((c) => c.name === "publica")) return;
@@ -1864,7 +1887,75 @@ export function leerOverlay(seccion: SeccionId = SECCION_POR_DEFECTO): Overlay {
       .prepare("SELECT DISTINCT pedido FROM of_retenida WHERE seccion = ? AND motivo = 'recuperada'")
       .all(seccion) as Array<{ pedido: string }>).map((f) => f.pedido),
   );
-  return { ofs, pedidosCompletados: new Set(pasos.keys()), pasos, recuperados };
+  return { ofs, pedidosCompletados: new Set(pasos.keys()), pasos, recuperados, devoluciones: leerDevoluciones(ofs) };
+}
+
+/** Quién la devolvió, cuándo, en qué vuelta va y qué lleva marcado el autor,
+ *  para las OF que tienen una corrección que enseñar (ver `correccionDe`).
+ *
+ *  Sin columnas nuevas: cada «devolver» ya queda en `acciones_log` con quién y
+ *  cuándo, y contar las de una OF da la vuelta. Va por el índice de `motivo`
+ *  (ver `prepararCorreccionHecha`): son unos cientos de filas de las decenas
+ *  de miles del registro. */
+function leerDevoluciones(ofs: ReadonlyMap<string, CambioOF>): Map<string, InfoDevolucion> {
+  const salida = new Map<string, InfoDevolucion>();
+  const conCorreccion = new Set([...ofs.values()].filter((c) => correccionDe(c)).map((c) => c.ofId));
+  if (conCorreccion.size === 0) return salida;
+  const db = abrir();
+  const filas = db
+    .prepare(
+      `SELECT json_extract(c.value, '$.ofId') AS ofId, l.operario_id AS por, l.ts AS at
+         FROM acciones_log l, json_each(l.detalle, '$.cambiosOF') c
+        WHERE l.motivo = 'devolver' AND json_valid(l.detalle)
+        ORDER BY l.id`,
+    )
+    .all() as Array<{ ofId: string | null; por: string | null; at: string }>;
+  for (const f of filas) {
+    if (!f.ofId || !conCorreccion.has(f.ofId)) continue;
+    const previa = salida.get(f.ofId);
+    salida.set(f.ofId, { por: f.por, at: f.at, vuelta: (previa?.vuelta ?? 0) + 1, hechas: [] });
+  }
+  // Lo marcado, solo si es de la nota de AHORA: una devolución nueva empieza
+  // limpia aunque queden filas de la anterior.
+  for (const f of db.prepare("SELECT of_id, huella, indice FROM correccion_hecha ORDER BY indice").all() as Array<{
+    of_id: string;
+    huella: string;
+    indice: number;
+  }>) {
+    const info = salida.get(f.of_id);
+    const obs = ofs.get(f.of_id)?.observacion;
+    if (info && obs && huellaNota(obs) === f.huella) info.hechas.push(f.indice);
+  }
+  return salida;
+}
+
+/** Guarda lo que el autor lleva marcado como corregido. SOLO INFORMATIVO
+ *  (Iván, 27/11/2026): no bloquea pasar a revisión ni nada más; sirve para que
+ *  la lista sea la misma desde cualquier PC y para quien coja la OF después.
+ *
+ *  Solo el AUTOR de la OF, y solo con una corrección viva: lo marcado se ata a
+ *  la huella de la nota actual. */
+export function guardarCorreccionHecha(
+  ofId: string,
+  indices: readonly number[],
+  operarioId: string,
+): "ok" | "sin_correccion" | "no_autor" {
+  const db = abrir();
+  const fila = db.prepare("SELECT autor_id, estado, observacion FROM of_overlay WHERE of_id = ?").get(ofId) as
+    | { autor_id: string | null; estado: string; observacion: string | null }
+    | undefined;
+  if (!fila || !correccionDe(fila) || !fila.observacion) return "sin_correccion";
+  if (fila.autor_id !== operarioId) return "no_autor";
+  const huella = huellaNota(fila.observacion);
+  const ahora = new Date().toISOString();
+  db.transaction(() => {
+    db.prepare("DELETE FROM correccion_hecha WHERE of_id = ?").run(ofId);
+    const ins = db.prepare(
+      "INSERT OR IGNORE INTO correccion_hecha (of_id, huella, indice, operario_id, at) VALUES (?, ?, ?, ?, ?)",
+    );
+    for (const i of indices) ins.run(ofId, huella, i, operarioId, ahora);
+  })();
+  return "ok";
 }
 
 /** Cómo estaban las OF de un pedido recuperado JUSTO ANTES de recuperarlo,

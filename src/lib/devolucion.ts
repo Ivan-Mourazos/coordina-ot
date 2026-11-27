@@ -149,6 +149,26 @@ export function correccionDe(of: {
   return null;
 }
 
+/** Un resumen corto de la nota: otra devolución, otra lista de casillas. La
+ *  usan el navegador y el servidor para saber si lo marcado es de ESTA nota. */
+export function huellaNota(texto: string): string {
+  let h = 0;
+  for (let i = 0; i < texto.length; i++) h = (h * 31 + texto.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+/** Quién devolvió la OF, cuándo, en qué vuelta va y qué lleva marcado el
+ *  autor como corregido (fase 2, 27/11/2026). Sale del registro de acciones:
+ *  cada «devolver» queda apuntado con su autor y su hora. */
+export interface InfoDevolucion {
+  por: string | null;
+  at: string;
+  /** 1 = primera devolución de esta OF. */
+  vuelta: number;
+  /** Índices de los puntos marcados. SOLO INFORMATIVO: no bloquea nada. */
+  hechas: number[];
+}
+
 /** Las líneas con algo, sin la viñeta que se le ponga a mano («- », «• »,
  *  «1.»): las notas de antes se escribían así, y al pegarlas en las líneas de
  *  corrección o marcarlas como hechas el guion sobra. */

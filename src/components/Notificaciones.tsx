@@ -3,6 +3,7 @@
 import type { Vista } from "./ViewSwitcher";
 import { usePopover } from "@/lib/usePopover";
 import { ESTADO } from "@/lib/estado";
+import { puntosDeLaNota } from "./NotaDevolucion";
 import { SECCIONES } from "@/lib/secciones";
 import type { NotifItem, NotifTipo } from "@/lib/notificaciones";
 
@@ -169,7 +170,21 @@ export function Notificaciones({
                         <span className="block truncate text-[11px] text-text-muted">
                           {detalleDe(item)}
                         </span>
-                        {item.quien && (
+                        {item.tipo === "devuelta" ? (
+                          // Quién la devolvió y cuánto hay que corregir, sin
+                          // abrir el pedido (fase 2, 27/11/2026).
+                          <span className="block truncate text-[11px] text-text-muted">
+                            {[
+                              item.quien && `Por ${item.quien}`,
+                              (() => {
+                                const n = item.ofs.reduce((t, o) => t + puntosDeLaNota(o.observacion), 0);
+                                return n > 0 ? `${n} ${n === 1 ? "punto" : "puntos"}` : "";
+                              })(),
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        ) : item.quien && (
                           <span className="block truncate text-[11px] text-text-muted">
                             {item.quien}
                             {/* Sin repetir el nombre: lo normal es soltar tu

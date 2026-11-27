@@ -2000,6 +2000,9 @@ function OFRow({
               // Al REVISOR se le abre: vuelve a revisión y quiere delante lo
               // que pidió para comprobar que se corrigió.
               abrirEnviada={!!miId && of.revisorId === miId}
+              devolucion={of.devolucion}
+              devueltaPor={opById(of.devolucion?.por ?? null)?.nombre.split(" ")[0]}
+              operarioId={miId ?? undefined}
               // Las casillas, solo para el AUTOR: es quien corrige. A los demás
               // la lista se les queda para leer.
               marcarComo={miId && of.autorId === miId ? of.id : undefined}

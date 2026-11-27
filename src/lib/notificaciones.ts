@@ -148,7 +148,8 @@ export function avisosDeOtraSeccion(
       if (of.revisorId === miId && of.estado === "por_revisar")
         out.push({ pedido: p, of, tipo: "revisar", seccion });
       else if (of.autorId === miId && of.estado === "devuelta")
-        out.push({ pedido: p, of, tipo: "devuelta", seccion });
+        // Quién la devolvió, del registro (fase 2, 27/11/2026).
+        out.push({ pedido: p, of, tipo: "devuelta", seccion, quien: nombre(of.devolucion?.por ?? null) });
     }
   }
   for (const a of movimientos) {
