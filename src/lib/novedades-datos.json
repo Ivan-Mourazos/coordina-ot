@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-27",
-    "hasta": "772beed",
+    "hasta": "436c0f1",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -29,6 +29,13 @@
         "apartado": "ot",
         "detalle": "Cada fallo pide escribir qué hay que corregir, y puedes añadir indicaciones generales aparte.",
         "tanda": 4
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Al devolverte una OF, lo que hay que corregir sale lo primero",
+        "apartado": "ot",
+        "detalle": "La OF devuelta se abre sola con la lista arriba; cuando la reenvías se pliega en gris. Planteamientos sigue enseñando la nota mientras corriges.",
+        "tanda": 5
       }
     ]
   },
