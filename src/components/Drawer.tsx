@@ -1759,7 +1759,9 @@ function OFRow({
           onClick={onAlternar}
           aria-expanded={abierta}
           aria-label={`${abierta ? "Plegar" : "Abrir"} la OF ${of.codigo}`}
-          className="-m-1.5 block w-[calc(100%+0.75rem)] cursor-pointer rounded-lg p-1.5 text-left hover:bg-[var(--glass-highlight)]"
+          /* `rounded-xl!`: el estilo HeroUI hace píldora todo botón, y en una
+             cabecera de dos líneas la curva se comía las letras de los extremos. */
+          className="-mx-2.5 -my-1.5 block w-[calc(100%+1.25rem)] cursor-pointer rounded-xl! px-2.5 py-1.5 text-left hover:bg-[var(--glass-highlight)]"
         >
           {cabecera}
         </button>
