@@ -32,7 +32,7 @@ test("los cuatro estados van uno debajo de otro, no en columnas", () => {
 
 test("los cuatro estados salen siempre, tengan algo o no", () => {
   const html = pintar(["en_revision"]);
-  for (const titulo of ["Por empezar", "Revisando", "Aprobadas por mí", "Devueltas por mí"]) {
+  for (const titulo of ["Por empezar", "Empezadas", "Aprobadas por mí", "Devueltas por mí"]) {
     expect(html).toContain(titulo);
   }
 });

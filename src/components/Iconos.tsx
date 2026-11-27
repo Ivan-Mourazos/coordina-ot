@@ -106,3 +106,24 @@ export function IconoCalendario({ className = "size-3" }: Props) {
     </svg>
   );
 }
+
+/** Hoja con esquina doblada: han vuelto a escanear el parte del pedido. */
+export function IconoParteNuevo({ className = "size-3" }: Props) {
+  return (
+    <svg {...base} className={`shrink-0 ${className}`}>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 14h6M9 17h4" />
+    </svg>
+  );
+}
+
+/** Más dentro de un círculo: ha aparecido una OF nueva tras pasar el pedido. */
+export function IconoOfNueva({ className = "size-3" }: Props) {
+  return (
+    <svg {...base} className={`shrink-0 ${className}`}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  );
+}

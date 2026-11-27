@@ -1,3 +1,4 @@
+import { CopiarCodigo } from "./CopiarCodigo";
 import type { OF, Operario } from "@/lib/types";
 import { tiempoTotalOF } from "@/lib/types";
 import { ESTADO, ROL, fmtMin, fmtMinEnteros } from "@/lib/estado";
@@ -93,6 +94,7 @@ export function FilaOF({
     <li className="placa-of flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface px-2.5 py-1.5 text-[11px] ring-1 ring-[var(--fila-borde)]">
       <FamiliaIcon familia={of.familia} className="size-3.5 shrink-0" />
       <span className="font-mono text-sm font-bold tracking-[0.02em] text-text">{of.codigo}</span>
+      <CopiarCodigo texto={of.codigo} className="-ml-2.5" />
       <span className="truncate text-text">{of.descripcion}</span>
       {of.fichandoRol && (
         <span
@@ -102,7 +104,10 @@ export function FilaOF({
           <LiveDot rol={of.fichandoRol} />
         </span>
       )}
-      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${meta.chip}`}>
+      {/* Estilo HeroUI, como la cabecera de la OF en la ficha: píldora neutra
+          con el punto del color del estado (Iván, 27/11/2026). */}
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-text">
+        <span className={`size-1.5 shrink-0 rounded-full ${meta.dot}`} aria-hidden />
         {meta.label}
       </span>
       {of.ajenaOT && (

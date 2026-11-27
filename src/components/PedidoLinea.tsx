@@ -20,10 +20,13 @@ import {
 import { ofsFichablesDe } from "@/lib/accion-pedido";
 import { motivoNoFichable } from "@/lib/fichaje";
 import { ROL, bordePrioridad, fmtMin } from "@/lib/estado";
-import { IconoCandado, IconoPausa } from "./Iconos";
+import { IconoCandado, IconoOfNueva, IconoParteNuevo, IconoPausa } from "./Iconos";
 import { fmtDiaMes } from "@/lib/fechas";
 import { ChipComprometida } from "./ChipComprometida";
-import { FamiliaTag } from "./FamiliaTag";
+import { DatoResumen, DatosResumen, ResumenFila, useResumenFila } from "./ResumenFila";
+import { FamiliaIcon } from "./FamiliaTag";
+import { familiaMeta } from "@/lib/familia";
+import { comprometidaVencida } from "@/lib/comprometida";
 import { hoyISO } from "@/lib/types";
 import { useSoloLectura } from "./SoloLectura";
 
@@ -215,24 +218,31 @@ export function PedidoLinea({
 
   // Los avisos del pedido, que van al principio de la columna del cliente:
   // un parte reescaneado, trabajo nuevo aparecido después de pasarlo y las OF
-  // detenidas por Producción.
+  // detenidas por Producción. En estrecho (≤ 30rem) pasan a icono de línea
+  // (mismo color, `title` y `sr-only` completos) para mantenerse en la única
+  // línea sin engordar la fila.
   const hayAvisos =
     pedido.scanCambiado || avisaDeOFNueva(pedido) || (detenidas > 0 && !detenidoDelTodo);
+  // Avisos en píldora, en minúscula y sin negrita gruesa, como el estado de la
+  // OF en la ficha (estilo HeroUI, Iván 27/11/2026). Conservan su color: ámbar
+  // o rojo es lo que avisa.
   const avisos = (
     <>
-      {/* En estrecho va junto a la planificada, solo la fecha: aquí bajaría a
-          una segunda línea y desplazaría las filas de debajo. */}
-      <ChipComprometida pedido={pedido} className="shrink-0 @max-[26rem]:hidden" />
+      {/* En estrecho va junto a la planificada, solo la fecha. */}
+      <ChipComprometida pedido={pedido} className="shrink-0 @max-[30rem]:hidden" />
       {/* Han vuelto a escanear el parte y nadie lo ha dado por visto. Va en
           la FILA y no solo dentro del pedido: la gracia es no ponerse a
           trabajar con la versión vieja, y para eso hay que verlo ANTES de
           abrirlo. Se apaga desde dentro, con el botón del aviso. */}
       {pedido.scanCambiado && (
         <span
-          className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300"
+          className="inline-flex shrink-0 items-center rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold leading-3 text-amber-800 dark:text-amber-300"
           title="Han vuelto a escanear el parte de este pedido. Ábrelo para verlo y darlo por visto."
         >
-          Parte nuevo
+          <span className="@max-[30rem]:sr-only">Parte nuevo</span>
+          <span className="hidden @max-[30rem]:inline-flex items-center" aria-hidden="true">
+            <IconoParteNuevo className="size-3" />
+          </span>
         </span>
       )}
       {/* Trabajo aparecido DESPUÉS de pasar el pedido a Producción: RPS ha
@@ -244,7 +254,7 @@ export function PedidoLinea({
           trabajo a un pedido, vuelven a escanear el parte. */}
       {avisaDeOFNueva(pedido) && (
         <span
-          className="shrink-0 rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300"
+          className="inline-flex shrink-0 items-center rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold leading-3 text-amber-800 dark:text-amber-300"
           /* Se cuentan las que siguen SIN DUEÑO, no todas las nuevas: el
              aviso ya solo sale por esas (ver `avisaDeOFNueva`), y decir "3
              OF nuevas" cuando dos ya las cogió alguien manda a buscar
@@ -255,7 +265,10 @@ export function PedidoLinea({
               : `Este pedido ya se había pasado a Producción y han aparecido ${ofNuevasSinCoger} OF nuevas sin hacer.`
           }
         >
-          OF nueva
+          <span className="@max-[30rem]:sr-only">OF nueva</span>
+          <span className="hidden @max-[30rem]:inline-flex items-center" aria-hidden="true">
+            <IconoOfNueva className="size-3" />
+          </span>
         </span>
       )}
       {/* Detenidas por Producción: no se pueden fichar y no está en mano de
@@ -263,354 +276,485 @@ export function PedidoLinea({
           se puede tocar y descubrirlo al intentar fichar. */}
       {detenidas > 0 && !detenidoDelTodo && (
         <span
-          className="shrink-0 rounded bg-red-600/12 px-1 py-0.5 text-[10px] font-bold uppercase text-red-700 dark:text-red-300"
+          className="inline-flex shrink-0 items-center rounded-full bg-red-600/12 px-1.5 py-0.5 text-[10px] font-semibold leading-3 text-red-700 dark:text-red-300"
           title={
             `${detenidas} de ${deOT.length} OF detenidas por Producción`
           }
         >
-          {`${detenidas} detenida${detenidas === 1 ? "" : "s"}`}
+          <span className="@max-[30rem]:sr-only">{`${detenidas} detenida${detenidas === 1 ? "" : "s"}`}</span>
+          <span className="hidden @max-[30rem]:inline-flex items-center gap-0.5" aria-hidden="true">
+            <IconoPausa className="size-2.5" />
+            {detenidas}
+          </span>
         </span>
       )}
     </>
+  );
+
+  const eligiendoRevisor = !!(pidiendoRevisor && onPasarRevision);
+  // Con el selector de revisor abierto (o mostrando quién falta), la tarjeta
+  // flotante de resumen no debe salir.
+  const resumen = useResumenFila({ desactivado: eligiendoRevisor || mostrandoFalta });
+  // En estrecho, si hay botón siempre visible («Pausar» o «Pasar a Producción»)
+  // o al aparecer los botones de hover/foco, lo que va a la derecha del código
+  // se esconde (`hidden`, nunca tapado porque el fondo es translúcido) para que
+  // los botones entren en la misma línea sin cambiar la altura de la fila.
+  const hayBotonFijo =
+    !soloConsulta && !soloLectura && (fichandoYo.length > 0 || (fase === "listoParaPasar" && listoParaPasar));
+  // `soloConsulta` va ANTES de `soloLectura`, como en el render: en la
+  // consulta sin login sale el candado al pasar, y sin hueco se salía de la
+  // fila en columnas estrechas (revisión del 27/11/2026).
+  const hayAccionAlPasar =
+    soloConsulta ||
+    (!soloLectura &&
+      (!hayBotonFijo &&
+        (fichables.length > 0 ||
+          puedePasarRevision ||
+          (sinBotonDeFichar && !!motivoSinFichar && !(fase === "esperandoRevision" && revisor)))));
+  const cederPorBotones = hayBotonFijo
+    ? "@max-[30rem]:hidden"
+    : hayAccionAlPasar
+      ? "@max-[30rem]:group-hover:hidden @max-[30rem]:group-has-[:focus-visible]:hidden"
+      : "";
+  // Por debajo de 18rem los botones sueltan el `min-w-[74px]` y acortan los
+  // textos largos («Rev.», «Pasar») para seguir cabiendo junto al código en
+  // una sola línea incluso en columnas de 220 px.
+  // Lo pequeño (iconos de familia y avisos, el nº de OF) se QUEDA al pasar el
+  // ratón, como en la ficha de la OF; solo cede lo que estorba a los botones
+  // (Iván, 27/11/2026). El nº de OF aguanta hasta 20rem; por debajo ya no cabe.
+  // Con DOS botones al pasar (fichar y «Pasar a revisión») no hay sitio para
+  // el nº de OF: medido, se salían 20 px a 301 de ancho. Entonces cede también.
+  const dosBotones = !soloConsulta && !soloLectura && !hayBotonFijo && fichables.length > 0 && puedePasarRevision;
+  const cederSiFalta = dosBotones ? cederPorBotones : cederPorBotones.replaceAll("@max-[30rem]:", "@max-[20rem]:");
+  const botonCompacto = "@max-[18rem]:min-w-0 @max-[18rem]:px-1.5";
+
+  const botonCodigo = (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen(facet);
+      }}
+      // Sin `title`: la fila se recorre con el ratón y la pista salía a cada
+      // paso, tapando la de abajo. Lo que decía ya está en la fila o al abrirla.
+      // `cursor-pointer` EXPLÍCITO. La regla de globals.css que pone la mano
+      // en todo `button` vive en `@layer base`, y ahí la gana cualquier
+      // utilidad de una capa posterior: en esta fila la mano solo salía sobre
+      // los botones de acción, y el resto —que abre el pedido, que es la
+      // acción más usada de la fila— se quedaba con la flecha de siempre.
+      // Puesta como utilidad, manda pase lo que pase.
+      // `rounded-none!`: el estilo HeroUI hace píldora todo botón, y con el
+      // `overflow-hidden` una fila de dos líneas («1 detenida», «Parte
+      // nuevo») se comía el código por la izquierda y la cuenta de OF por la
+      // derecha ("2 O"). La forma la da la fila, no este botón.
+      // Sin `truncate`: el número de pedido es lo más importante y nunca se
+      // corta ni se esconde.
+      className={`flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-none! text-left ${
+        mostrandoFalta
+          ? ""
+          : eligiendoRevisor
+            ? "w-[5.75rem] pt-0.5 @max-[30rem]:w-auto @max-[30rem]:pt-0"
+            : "col-start-1 row-start-1"
+      }`}
+    >
+      {/* Columna 1: el punto de "lo están fichando" y el código. */}
+      {fichandoAlguien && (
+        <span
+          title={fichandoYo.length > 0 ? "Lo estás fichando tú" : "Alguien lo está fichando ahora"}
+          className={`size-1.5 shrink-0 rounded-full ring-2 ${
+            fichandoAlguien.fichandoRol === "revisar"
+              ? "bg-violet-500 ring-violet-500/30"
+              : "bg-emerald-500 ring-emerald-500/30"
+          }`}
+        />
+      )}
+      {detenidoDelTodo && (
+        <IconoPausa className="size-3 shrink-0 text-amber-800 dark:text-amber-300" />
+      )}
+      <b
+        className={`font-semibold tabular-nums ${
+          detenidoDelTodo ? "text-text-muted" : "text-text"
+        }`}
+      >
+        {pedido.codigo}
+      </b>
+    </button>
   );
 
   return (
     <div
       // Lo busca lib/paseAnimado.ts para hacer volar la fila al pasarla.
       data-pedido={pedido.id}
+      onClick={() => onOpen(facet)}
+      {...resumen.handlers}
       // Ámbar y NO rojo: el rojo es de "urgente" en toda la app, y un pedido
       // parado no es urgente —es justo lo contrario—. Es el mismo ámbar del
       // aviso "N parados por Producción" de la zona personal.
       // `--borde-prioridad`: el mismo color para el estilo HeroUI, que quita los
       // bordes de las filas y lo pinta como sombra interior (ver hero.css).
       style={{ borderLeftColor: detenidoDelTodo ? AMBAR_PARADO : color, "--borde-prioridad": detenidoDelTodo ? AMBAR_PARADO : color } as CSSProperties}
-      // `@container`: la fila mide SU ancho y las reglas `@max-[26rem]` de
-      // dentro se aplican según él. Sin contenedor no casaban nunca, y en las
-      // columnas estrechas de la zona personal (cinco fases repartiéndose el
-      // ancho) «Parte nuevo» se montaba sobre la fecha y la cuenta de OF
-      // salía cortada ("2 O").
-      className={`@container group relative flex items-center gap-2 rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra con-prioridad px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
+      // `@container`: la fila mide SU ancho y las reglas `@max-[…]` de sus
+      // descendientes se aplican según él. La disposición vive en el hijo
+      // directo porque una container query nunca se aplica al propio contenedor.
+      className={`@container group relative cursor-pointer rounded-lg border border-l-[3px] border-[var(--fila-filo)] fila-sombra con-prioridad px-2 py-1.5 text-[11px] transition-colors hover:border-brand-400 ${
         // Del color del ROL, no siempre verde: revisando salía igual que
         // planteando (Iván, 16/10/2026). Ver `.fila-fichando-*` en globals.css.
         fichandoAlguien ? `fila-fichando-${fichandoAlguien.fichandoRol}` : detenidoDelTodo ? "bg-[color-mix(in_srgb,var(--surface-2)_50%,var(--fila))]" : "bg-[var(--fila)]"
       }`}
     >
-      <button
-        onClick={() => onOpen(facet)}
-        // Sin `title`: la fila se recorre con el ratón y la pista salía a cada
-        // paso, tapando la de abajo. Lo que decía ya está en la fila o al abrirla.
-        // `cursor-pointer` EXPLÍCITO. La regla de globals.css que pone la mano
-        // en todo `button` vive en `@layer base`, y ahí la gana cualquier
-        // utilidad de una capa posterior: en esta fila la mano solo salía sobre
-        // los botones de acción, y el resto —que abre el pedido, que es la
-        // acción más usada de la fila— se quedaba con la flecha de siempre.
-        // Puesta como utilidad, manda pase lo que pase.
-        // EN COLUMNAS, no en fila corrida: el código, la fecha y la cuenta de
-        // OF caen siempre en el mismo sitio, así que se recorren de arriba
-        // abajo con la vista. Con `flex`, cada fila colocaba sus datos donde
-        // le tocaba según lo largos que fueran los de la izquierda, y cinco
-        // datos sin alinear se leen como un amasijo.
-        //
-        // El cliente tiene TOPE (26rem). Estirado hasta el final, en la zona
-        // propia —que ocupa todo el ancho— dejaba 600 px vacíos entre el nombre
-        // y su fecha, y había que cruzar la pantalla para leer una fila. Con
-        // tope, la fecha va detrás del cliente y lo que sobra queda al final
-        // (`justify-start`: una columna `auto` se estira si no); las columnas
-        // siguen alineadas porque el tope es el mismo en todas. Y el resto de
-        // columnas y huecos, ajustados: en los paneles estrechos lo que no
-        // ocupan ellas es lo que le queda al nombre del cliente.
-        //
-        // Pidiendo revisor o avisando de quién falta, la fila se queda en el
-        // código y el resto del ancho es para ese aviso: ahí no hay columnas
-        // que alinear.
-        //
-        // `rounded-none!`: el estilo HeroUI hace píldora todo botón, y con el
-        // `overflow-hidden` una fila de dos líneas («1 detenida», «Parte
-        // nuevo») se comía el código por la izquierda y la cuenta de OF por la
-        // derecha ("2 O"). La forma la da la fila, no este botón.
-        className={`min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-none! text-left ${
+      {/* EN COLUMNAS, no en fila corrida: el código, la fecha y la cuenta de
+          OF caen siempre en el mismo sitio, así que se recorren de arriba
+          abajo con la vista. Con `flex`, cada fila colocaba sus datos donde
+          le tocaba según lo largos que fueran los de la izquierda, y cinco
+          datos sin alinear se leen como un amasijo.
+
+          El cliente tiene TOPE (26rem). Estirado hasta el final, en la zona
+          propia —que ocupa todo el ancho— dejaba 600 px vacíos entre el nombre
+          y su fecha, y había que cruzar la pantalla para leer una fila. Con
+          tope, la fecha va detrás del cliente y lo que sobra queda al final;
+          las columnas siguen alineadas porque el tope es el mismo en todas.
+
+          SIEMPRE UNA SOLA LÍNEA en reposo y con hover (`h-5` = 20 px fijos
+          para que la altura no cambie ni 1 px al pasar el ratón). Escalera de
+          lo que cede al estrechar, hasta quedar solo el número de pedido:
+          1) minutos y familia 5.5rem (≤ 34rem); cliente fuera y avisos cortos (≤ 30rem);
+          2) texto de familia → solo icono con `title` (≤ 18rem) y botones compactos;
+          3) fecha comprometida (≤ 15.5rem) y luego planificada (≤ 13.5rem);
+          4) cuenta de OF y avatar de revisor (≤ 11.5rem);
+          5) icono de familia y avisos (≤ 9.5rem).
+
+          Única excepción a la línea única: al pedir revisor, la fila sí puede
+          crecer mientras se elige —en ancho a la derecha del código; en
+          estrecho queda solo el código arriba y los compañeros debajo en flujo
+          envolviendo sin scroll horizontal. */}
+      <div
+        className={
           mostrandoFalta
-            ? "flex shrink-0"
-            : "grid flex-1 justify-start grid-cols-[5.75rem_6.5rem_minmax(0,26rem)_auto] @max-[26rem]:grid-cols-[5.75rem_minmax(0,1fr)_auto] @max-[26rem]:gap-y-1"
-        }`}
+            ? "flex h-5 items-center gap-2"
+            : eligiendoRevisor
+              ? "flex items-start gap-x-2 gap-y-1.5 @max-[30rem]:flex-col @max-[30rem]:items-stretch"
+              : "grid h-5 items-center gap-x-1.5 grid-cols-[minmax(5.75rem,max-content)_4.5rem_minmax(0,26rem)_auto_auto_minmax(max-content,1fr)] @max-[34rem]:grid-cols-[minmax(5.75rem,max-content)_4.5rem_minmax(0,26rem)_auto_auto_minmax(max-content,1fr)] @max-[30rem]:flex @max-[30rem]:items-center @max-[30rem]:gap-1.5"
+        }
       >
-        {/* Columna 1: el punto de "lo están fichando" y el código. */}
-        <span className="flex min-w-0 items-center gap-1.5">
-          {fichandoAlguien && (
-            <span
-              title={fichandoYo.length > 0 ? "Lo estás fichando tú" : "Alguien lo está fichando ahora"}
-              className={`size-1.5 shrink-0 rounded-full ring-2 ${
-                fichandoAlguien.fichandoRol === "revisar"
-                  ? "bg-violet-500 ring-violet-500/30"
-                  : "bg-emerald-500 ring-emerald-500/30"
-              }`}
-            />
-          )}
-          {detenidoDelTodo && (
-            <IconoPausa className="size-3 shrink-0 text-amber-800 dark:text-amber-300" />
-          )}
-          <b
-            className={`truncate font-semibold tabular-nums ${
-              detenidoDelTodo ? "text-text-muted" : "text-text"
-            }`}
-          >
-            {pedido.codigo}
-          </b>
-        </span>
-        {/* Al pedir revisor, o al avisar de que falta gente, se recorta a
-            solo el código: el hueco que suelta la descripción es el que
-            necesita el selector o el aviso para no quedar apretados en
-            filas estrechas (zona personal). */}
-        {/* EN ESTRECHO (fila de menos de 26rem: la zona personal con varias
-            fases repartiéndose el ancho) no caben las cuatro columnas. Se va
-            el cliente, que ahí se quedaba en «TARRIO ALV…»; la cuenta de OF
-            pierde los minutos, y los avisos bajan a una SEGUNDA línea en vez
-            de montarse sobre la fecha. Solo la fila que tiene avisos crece. */}
-        {!mostrandoFalta && (
+        {mostrandoFalta ? (
           <>
+            {botonCodigo}
+            {/* Lo tuyo está hecho pero el pedido va entero a Producción: se dice a
+                quién se espera, en el hueco de la descripción. */}
+            <span
+              className="min-w-0 flex-1 truncate text-[10px] text-text-muted"
+              title={`El pedido se pasa a Producción cuando están aprobadas todas sus OF — falta ${faltanTexto}`}
+            >
+              falta {faltanResumen}
+            </span>
+          </>
+        ) : eligiendoRevisor ? (
+          <>
+            {/* En estrecho la primera línea queda solo con el código y los
+                compañeros van debajo ocupando todo el ancho sin scroll. */}
+            {botonCodigo}
+            <div
+              className="min-w-0 flex-1 @max-[30rem]:w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <PedirRevisor
+                operarios={operarios ?? []}
+                excluirIds={pidiendoRevisor.map((o) => o.autorId)}
+                // Se cierra al elegir: el pase se pinta al momento (ver Board) y,
+                // si el servidor no lo guarda, las OF vuelven a esta fila.
+                onConfirmar={(rev) => {
+                  const ids = pidiendoRevisor.map((o) => o.id);
+                  setPidiendoRevisor(null);
+                  void onPasarRevision(ids, rev);
+                }}
+                onCancelar={() => setPidiendoRevisor(null)}
+                nombreCorto
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            {botonCodigo}
+
             {/* Columna 2: la familia, en su propia columna y DELANTE del cliente:
                 detrás quedaba a una distancia distinta en cada fila, según lo
-                largo que fuera el nombre. Con varias, la primera y "+N": son
-                pocas y lo que hace falta aquí es saber de qué va el pedido. */}
-            <span className="flex min-w-0 items-center gap-1 overflow-hidden">
-              {familias[0] && <FamiliaTag familia={familias[0]} />}
-              {familias.length > 1 && (
-                <span className="shrink-0 text-[10px] text-text-muted" title={familias.join(" · ")}>
-                  +{familias.length - 1}
+                largo que fuera el nombre. */}
+            <span className={`col-start-2 row-start-1 flex min-w-0 items-center gap-1 overflow-hidden @max-[30rem]:flex-1 @max-[30rem]:min-w-max @max-[9.5rem]:hidden ${dosBotones && hayAccionAlPasar ? "@max-[16rem]:group-hover:hidden @max-[16rem]:group-has-[:focus-visible]:hidden" : ""}`}>
+              {/* SOLO ICONOS, todas las familias (Iván, 27/11/2026): con el nombre solo
+                  cabía la primera y un «+N»; así se ven todas de un vistazo. El nombre,
+                  al pasar el ratón por cada icono y en la tarjeta de la fila. */}
+              {familias.map((fam) => (
+                <span key={fam} title={familiaMeta(fam).label} className="inline-flex shrink-0">
+                  <FamiliaIcon familia={fam} className="size-3.5" />
                 </span>
-              )}
+              ))}
             </span>
-            {/* Columna 3: los avisos del pedido y el cliente. */}
-            {/* `overflow-hidden`: en ancho, si los avisos no caben se recortan
-                dentro de su columna, nunca encima de la fecha. */}
+
+            {/* Columna 3: los avisos del pedido y el cliente.
+                `overflow-hidden`: en ancho, si los avisos no caben se recortan
+                dentro de su columna, nunca encima de la fecha. En estrecho se
+                va el cliente (que ahí se quedaba en «TARRIO ALV…») y los avisos
+                quedan como chips cortos en la misma línea. */}
             <span
-              className={`flex min-w-0 items-center gap-2 overflow-hidden ${
-                hayAvisos ? "@max-[26rem]:col-span-full @max-[26rem]:row-start-2" : "@max-[26rem]:hidden"
+              className={`col-start-3 row-start-1 flex min-w-0 items-center gap-1.5 overflow-hidden ${
+                hayAvisos
+                  ? `@max-[30rem]:shrink-0 @max-[30rem]:gap-1 @max-[9.5rem]:hidden`
+                  : "@max-[30rem]:hidden"
               }`}
             >
               {avisos}
-              <span className="min-w-0 flex-1 truncate text-text-muted @max-[26rem]:hidden">
+              <span className="min-w-0 flex-1 truncate text-text-muted @max-[30rem]:hidden">
                 {pedido.cliente}
               </span>
             </span>
-            {/* SE ESCONDE CUANDO APARECE UN BOTÓN ENCIMA. Los botones se
-                superponen al final de la fila (ver su rama más abajo) y se
-                tapaban con `bg-inherit`, pero el fondo de la fila es
-                SEMITRANSPARENTE —`bg-surface-2/60`, `bg-emerald-500/10`—: un
-                fondo translúcido sobre un texto no lo tapa, lo vela. Se veía
-                "1 OF" a través de "Fichar".
-                No se arregla dándole un fondo opaco, porque tendría que
-                acertar con el tinte de la fila en cada estado y en los dos
-                temas. Se arregla quitando de debajo lo que sobra: al pasar el
-                ratón, la cuenta de OF deja sitio al botón.
-                Y con el reloj MÍO en marcha se esconde siempre, porque ahí el
-                botón de pausar está visible sin necesidad de pasar por encima. */}
-            {/* La fecha PLANIFICADA, que es por la que van ordenadas las
-                filas del panel (ver `agruparPorFase`): sin ella, el orden no
-                se explica solo. En rojo cuando ya pasó. */}
-            <span className="flex shrink-0 items-center justify-end gap-2 text-[10px]">
-            <ChipComprometida pedido={pedido} soloFecha className="hidden shrink-0 tabular-nums @max-[26rem]:inline" />
-            {pedido.fechaPlanificacion && (
-              <span
-                className={`w-[2.6rem] shrink-0 text-right tabular-nums ${
-                  // En un pedido PARADO la fecha vencida no se marca: el
-                  // retraso no es de quien lo lleva, y en rojo pedía una
-                  // reacción que nadie de OT puede tener.
-                  pedido.fechaPlanificacion < hoyISO() && !fichandoYo.length && !detenidoDelTodo
-                    ? "font-semibold text-error"
-                    : "text-text-muted"
-                }`}
-              >
-                {fmtDiaMes(pedido.fechaPlanificacion)}
-              </span>
-            )}
-            <span className="w-[4.75rem] shrink-0 text-right text-text-muted @max-[26rem]:w-auto">
+
+            {/* Columna 4: la fecha PLANIFICADA, que es por la que van ordenadas
+                las filas del panel (ver `agruparPorFase`): sin ella, el orden
+                no se explica solo. En rojo cuando ya pasó. En estrecho lleva
+                delante la comprometida (solo fecha); ceden comprometida (≤ 15.5rem)
+                y luego planificada (≤ 13.5rem). */}
+            <span className={`col-start-4 row-start-1 flex shrink-0 items-center justify-end gap-1.5 text-[10px] @max-[30rem]:empty:hidden @max-[13.5rem]:hidden ${cederPorBotones}`}>
+              <ChipComprometida pedido={pedido} soloFecha className="hidden shrink-0 tabular-nums @max-[30rem]:inline @max-[15.5rem]:hidden" />
+              {pedido.fechaPlanificacion && (
+                <span
+                  className={`w-[2.6rem] shrink-0 text-right tabular-nums @max-[30rem]:w-auto ${
+                    // En un pedido PARADO la fecha vencida no se marca: el
+                    // retraso no es de quien lo lleva, y en rojo pedía una
+                    // reacción que nadie de OT puede tener.
+                    pedido.fechaPlanificacion < hoyISO() && !fichandoYo.length && !detenidoDelTodo
+                      ? "font-semibold text-error"
+                      : "text-text-muted"
+                  }`}
+                >
+                  {fmtDiaMes(pedido.fechaPlanificacion)}
+                </span>
+              )}
+            </span>
+
+            {/* Columna 5: cuenta de OF (sin minutos por debajo de 34rem; cede a ≤ 11.5rem). */}
+            <span className={`col-start-5 row-start-1 w-[4.75rem] shrink-0 text-right text-[10px] text-text-muted @max-[34rem]:w-auto @max-[11.5rem]:hidden ${cederSiFalta}`}>
               {/* Redondeado a minutos: `fmtMin` sabe enseñar segundos y aquí
                   salía "14m 7s" al lado de "36m" y "42m". En una lista que se
                   recorre con la vista, los segundos son ruido; el detalle fino
                   está en «Tareas y tiempos». */}
               {ofs.length} OF
               {minutos > 0 && (
-                <span className="@max-[26rem]:hidden">{` · ${fmtMin(Math.round(minutos))}`}</span>
+                <span className="@max-[34rem]:hidden">{` · ${fmtMin(Math.round(minutos))}`}</span>
               )}
             </span>
+
+            {/* LOS BOTONES, en su hueco a la derecha (no superpuestos). Al pasar
+                el ratón aparecen los que solo salen entonces y, en ancho, se
+                acorta el cliente; en estrecho ocupan el sitio de lo que cede a
+                la derecha del código en la misma línea. Pausar y «Pasar a
+                Producción», siempre a la vista.
+                `-my-0.5`: el botón mide 22 px y el texto de la fila 18,6; sin
+                esto, al aparecer con el ratón la fila crecía 3 px y el panel
+                entero daba un respingo (Iván, 26/11/2026). Así sobresale sin
+                empujar. */}
+            <span
+              onClick={(e) => e.stopPropagation()}
+              className="col-start-6 row-start-1 -my-0.5 flex shrink-0 items-center justify-end gap-1 justify-self-end empty:hidden @max-[30rem]:ml-auto"
+            >
+              {soloConsulta ? (
+                // Trabajo de otro: COGER (pregunta antes, lo lleva el Board). Sin
+                // `onCoger` —la consulta sin login— un candado con el motivo.
+                onCoger && !soloLectura ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCoger(facet);
+                    }}
+                    title={`Pasa este pedido a tu panel (ahora está ${motivoBloqueo(facet)})`}
+                    className={`${BOTON_FILA} ${botonCompacto} ${AL_PASAR} ${BOTON_NEUTRO}`}
+                  >
+                    Coger
+                  </button>
+                ) : (
+                  <span
+                    className={`${AL_PASAR} text-text-muted`}
+                    title={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
+                    aria-label={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
+                  >
+                    <IconoCandado />
+                  </span>
+                )
+              ) : soloLectura ? null : (
+                <>
+                  {fichandoYo.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => onDesficharVarias(fichandoYo.map((o) => o.id))}
+                      title={
+                        fichandoYo.length === 1
+                          ? "Para el reloj y deja el pedido como está: sigue siendo tuyo y en curso"
+                          : `Para el reloj en las ${fichandoYo.length} OF que estás fichando de este pedido. Siguen como están: no se cierra nada.`
+                      }
+                      className={`${BOTON_FILA} ${botonCompacto} inline-flex ${
+                        fichandoYo.some((o) => o.fichandoRol === "revisar") ? ROL.revisar.solido : ROL.plantear.solido
+                      }`}
+                    >
+                      Pausar{fichandoYo.length > 1 && ` ${fichandoYo.length}`}
+                    </button>
+                  ) : (
+                    fichables.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => onFichar(fichables.map((o) => o.id), "plantear")}
+                        title={
+                          minutosFichables > 0
+                            ? "Vuelve a poner el reloj en marcha en este pedido"
+                            : fichables.length === 1
+                              ? "Empieza el planteo y pone el reloj en marcha"
+                              : `Empieza el planteo de las ${fichables.length} OF y pone el reloj en marcha`
+                        }
+                        className={`${BOTON_FILA} ${botonCompacto} ${AL_PASAR} ${ROL.plantear.solido}`}
+                      >
+                        {/* Reanudar no es empezar, y las mismas palabras en todas partes. */}
+                        {minutosFichables > 0 ? "Reanudar" : "Fichar"}
+                        {fichables.length > 1 && ` ${fichables.length}`}
+                      </button>
+                    )
+                  )}
+
+                  {/* PASAR A REVISIÓN, morado con borde como en la ficha. Con el
+                      reloj en marcha también: pausa y pide revisor. */}
+                  {puedePasarRevision && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (pidiendoRevisor) {
+                          setPidiendoRevisor(null);
+                          return;
+                        }
+                        const enMiReloj = fichandoYo.filter((o) => paraRevisar.some((r) => r.id === o.id));
+                        if (enMiReloj.length > 0) onDesficharVarias(enMiReloj.map((o) => o.id));
+                        setPidiendoRevisor(paraRevisar);
+                      }}
+                      aria-expanded={!!pidiendoRevisor}
+                      aria-label="Pasar a revisión"
+                      title={
+                        paraRevisar.length === 1
+                          ? "Da por terminado el planteo y lo manda a revisar"
+                          : `Da por terminado el planteo de las ${paraRevisar.length} OF y las manda a revisar, todas al mismo revisor`
+                      }
+                      className={`${BOTON_FILA} ${botonCompacto} ${AL_PASAR} ${BOTON_PASAR_REVISION}`}
+                    >
+                      <span className="@max-[18rem]:hidden">Pasar a revisión</span>
+                      <span className="hidden @max-[18rem]:inline" aria-hidden="true">Rev.</span>
+                    </button>
+                  )}
+
+                  {/* Pasar a Producción: el final del camino, siempre a la vista. */}
+                  {fase === "listoParaPasar" && listoParaPasar && (
+                    <button
+                      type="button"
+                      onClick={() => completarPedido(pedido.id)}
+                      aria-label="Pasar a Producción"
+                      title="Pasa el pedido a Producción"
+                      className={`${BOTON_FILA} ${botonCompacto} inline-flex ${BOTON_CIERRE}`}
+                    >
+                      <span className="@max-[18rem]:hidden">Pasar a Producción</span>
+                      <span className="hidden @max-[18rem]:inline" aria-hidden="true">Pasar</span>
+                    </button>
+                  )}
+
+                  {/* Esperando revisión: QUIÉN la tiene, en vez del candado con
+                      «Lo tiene el revisor». */}
+                  {fase === "esperandoRevision" && revisor ? (
+                    <span
+                      title={`Lo revisa ${revisor.nombre}: lo que se ficha ahora es la revisión, y le toca a él`}
+                      className="grid size-[18px] shrink-0 place-items-center rounded-full text-[8px] font-bold @max-[11.5rem]:hidden"
+                      style={{ background: revisor.color, color: tintaSobre(revisor.color) }}
+                    >
+                      {revisor.iniciales}
+                    </span>
+                  ) : (
+                    // POR QUÉ NO HAY BOTÓN, al pasar el ratón. En estrecho solo el
+                    // candado; el motivo entero va en el `title`.
+                    sinBotonDeFichar &&
+                    motivoSinFichar &&
+                    !puedePasarRevision && (
+                      <span
+                        className={`${AL_PASAR} items-center gap-1 px-1 text-[11px] font-medium text-text-muted`}
+                        title={motivoSinFichar.largo}
+                      >
+                        <IconoCandado />
+                        <span className="@max-[26rem]:hidden">{motivoSinFichar.corto}</span>
+                      </span>
+                    )
+                  )}
+                </>
+              )}
             </span>
           </>
         )}
-      </button>
+      </div>
 
-      {/* LOS BOTONES, en su hueco a la derecha (no superpuestos). Al pasar el
-          ratón aparecen los que solo salen entonces y se acorta el cliente;
-          la fecha y la cuenta de OF no se tapan nunca. Pausar y «Pasar a
-          Producción», siempre a la vista. */}
-      {mostrandoFalta ? (
-        // Lo tuyo está hecho pero el pedido va entero a Producción: se dice a
-        // quién se espera, en el hueco de la descripción.
-        <span
-          className="min-w-0 flex-1 truncate text-[10px] text-text-muted"
-          title={`El pedido se pasa a Producción cuando están aprobadas todas sus OF — falta ${faltanTexto}`}
-        >
-          falta {faltanResumen}
-        </span>
-      ) : (
-        // `-my-0.5`: el botón mide 22 px y el texto de la fila 18,6; sin esto,
-        // al aparecer con el ratón la fila crecía 3 px y el panel entero
-        // daba un respingo (Iván, 26/11/2026). Así sobresale sin empujar.
-        <span className="-my-0.5 flex shrink-0 items-center gap-1 empty:hidden">
-          {soloConsulta ? (
-            // Trabajo de otro: COGER (pregunta antes, lo lleva el Board). Sin
-            // `onCoger` —la consulta sin login— un candado con el motivo.
-            onCoger && !soloLectura ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCoger(facet);
-                }}
-                title={`Pasa este pedido a tu panel (ahora está ${motivoBloqueo(facet)})`}
-                className={`${BOTON_FILA} ${AL_PASAR} ${BOTON_NEUTRO}`}
-              >
-                Coger
-              </button>
-            ) : (
-              <span
-                className={`${AL_PASAR} text-text-muted`}
-                title={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
-                aria-label={`Trabajo de otra persona: ${motivoBloqueo(facet)}`}
-              >
-                <IconoCandado />
-              </span>
-            )
-          ) : soloLectura ? null : (
-            <>
-              {fichandoYo.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => onDesficharVarias(fichandoYo.map((o) => o.id))}
-                  title={
-                    fichandoYo.length === 1
-                      ? "Para el reloj y deja el pedido como está: sigue siendo tuyo y en curso"
-                      : `Para el reloj en las ${fichandoYo.length} OF que estás fichando de este pedido. Siguen como están: no se cierra nada.`
-                  }
-                  className={`${BOTON_FILA} inline-flex ${
-                    fichandoYo.some((o) => o.fichandoRol === "revisar") ? ROL.revisar.solido : ROL.plantear.solido
-                  }`}
-                >
-                  Pausar{fichandoYo.length > 1 && ` ${fichandoYo.length}`}
-                </button>
-              ) : (
-                fichables.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => onFichar(fichables.map((o) => o.id), "plantear")}
-                    title={
-                      minutosFichables > 0
-                        ? "Vuelve a poner el reloj en marcha en este pedido"
-                        : fichables.length === 1
-                          ? "Empieza el planteo y pone el reloj en marcha"
-                          : `Empieza el planteo de las ${fichables.length} OF y pone el reloj en marcha`
-                    }
-                    className={`${BOTON_FILA} ${AL_PASAR} ${ROL.plantear.solido}`}
-                  >
-                    {/* Reanudar no es empezar, y las mismas palabras en todas partes. */}
-                    {minutosFichables > 0 ? "Reanudar" : "Fichar"}
-                    {fichables.length > 1 && ` ${fichables.length}`}
-                  </button>
-                )
-              )}
-
-              {/* PASAR A REVISIÓN, morado con borde como en la ficha. Con el
-                  reloj en marcha también: pausa y pide revisor. */}
-              {puedePasarRevision && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (pidiendoRevisor) {
-                      setPidiendoRevisor(null);
-                      return;
-                    }
-                    const enMiReloj = fichandoYo.filter((o) => paraRevisar.some((r) => r.id === o.id));
-                    if (enMiReloj.length > 0) onDesficharVarias(enMiReloj.map((o) => o.id));
-                    setPidiendoRevisor(paraRevisar);
-                  }}
-                  aria-expanded={!!pidiendoRevisor}
-                  title={
-                    paraRevisar.length === 1
-                      ? "Da por terminado el planteo y lo manda a revisar"
-                      : `Da por terminado el planteo de las ${paraRevisar.length} OF y las manda a revisar, todas al mismo revisor`
-                  }
-                  className={`${BOTON_FILA} ${pidiendoRevisor ? `inline-flex ${ROL.revisar.solido}` : `${AL_PASAR} ${BOTON_PASAR_REVISION}`}`}
-                >
-                  Pasar a revisión
-                </button>
-              )}
-
-              {/* Pasar a Producción: el final del camino, siempre a la vista. */}
-              {fase === "listoParaPasar" && listoParaPasar && (
-                <button
-                  type="button"
-                  onClick={() => completarPedido(pedido.id)}
-                  title="Pasa el pedido a Producción"
-                  className={`${BOTON_FILA} inline-flex ${BOTON_CIERRE}`}
-                >
-                  Pasar a Producción
-                </button>
-              )}
-
-              {/* Esperando revisión: QUIÉN la tiene, en vez del candado con
-                  «Lo tiene el revisor». */}
-              {fase === "esperandoRevision" && revisor ? (
-                <span
-                  title={`Lo revisa ${revisor.nombre}: lo que se ficha ahora es la revisión, y le toca a él`}
-                  className="grid size-[18px] shrink-0 place-items-center rounded-full text-[8px] font-bold"
-                  style={{ background: revisor.color, color: tintaSobre(revisor.color) }}
-                >
-                  {revisor.iniciales}
+      {/* En estrecho (≤ 30rem), al dejar el ratón o foco 400 ms, enseña lo que
+          se recortó de la fila: cliente, todas las familias, fechas, cuenta con
+          minutos, avisos completos y revisor. Con el selector abierto no sale. */}
+      <ResumenFila ancla={resumen.ancla} onCerrado={resumen.cerrar}>
+        <DatosResumen titulo={pedido.cliente}>
+          {familias.length > 0 && (
+            <DatoResumen etiqueta={familias.length > 1 ? "Familias" : "Familia"}>
+              {familias.map((fam) => (
+                <span key={fam} className="inline-flex items-center gap-1">
+                  <FamiliaIcon familia={fam} className="size-3.5" />
+                  {familiaMeta(fam).label}
                 </span>
-              ) : (
-                // POR QUÉ NO HAY BOTÓN, al pasar el ratón. En estrecho solo el
-                // candado; el motivo entero va en el `title`.
-                sinBotonDeFichar &&
-                motivoSinFichar &&
-                !puedePasarRevision && (
-                  <span
-                    className={`${AL_PASAR} items-center gap-1 px-1 text-[11px] font-medium text-text-muted`}
-                    title={motivoSinFichar.largo}
-                  >
-                    <IconoCandado />
-                    <span className="@max-[26rem]:hidden">{motivoSinFichar.corto}</span>
-                  </span>
-                )
-              )}
-            </>
+              ))}
+            </DatoResumen>
           )}
-        </span>
-      )}
-
-      {/* Los compañeros ENCIMA de la fila, en su sitio (Iván, 26/11/2026): la
-          fila no crece ni empuja el panel. Opaco, para que no se lea el texto
-          de debajo; la flecha de delante vuelve sin elegir. Nombre de pila:
-          los completos no caben en una columna de la zona personal. */}
-      {pidiendoRevisor && onPasarRevision && (
-        <div
-          className="absolute inset-y-0 right-0 left-[6.5rem] z-10 flex items-center overflow-x-auto rounded-r-lg bg-surface pr-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <PedirRevisor
-            operarios={operarios ?? []}
-            excluirIds={pidiendoRevisor.map((o) => o.autorId)}
-            // Se cierra al elegir: el pase se pinta al momento (ver Board) y,
-            // si el servidor no lo guarda, las OF vuelven a esta fila.
-            onConfirmar={(rev) => {
-              const ids = pidiendoRevisor.map((o) => o.id);
-              setPidiendoRevisor(null);
-              void onPasarRevision(ids, rev);
-            }}
-            onCancelar={() => setPidiendoRevisor(null)}
-            nombreCorto
-          />
-        </div>
-      )}
+          {pedido.fechaComprometida && (
+            <DatoResumen etiqueta="Comprometida">
+              <span className={comprometidaVencida(pedido, hoyISO()) ? "font-semibold text-error" : ""}>
+                {fmtDiaMes(pedido.fechaComprometida)}
+              </span>
+            </DatoResumen>
+          )}
+          {pedido.fechaPlanificacion && (
+            <DatoResumen etiqueta="Planificada">
+              <span
+                className={
+                  pedido.fechaPlanificacion < hoyISO() && !fichandoYo.length && !detenidoDelTodo
+                    ? "font-semibold text-error"
+                    : ""
+                }
+              >
+                {fmtDiaMes(pedido.fechaPlanificacion)}
+              </span>
+            </DatoResumen>
+          )}
+          <DatoResumen etiqueta="Trabajo">
+            {ofs.length} OF{minutos > 0 ? ` · ${fmtMin(Math.round(minutos))}` : ""}
+          </DatoResumen>
+          {fase === "esperandoRevision" && revisor && (
+            <DatoResumen etiqueta="Revisa">
+              <span
+                className="grid size-4 shrink-0 place-items-center rounded-full text-[8px] font-bold leading-none"
+                style={{ background: revisor.color, color: tintaSobre(revisor.color) }}
+              >
+                {revisor.iniciales}
+              </span>
+              {revisor.nombre}
+            </DatoResumen>
+          )}
+          {(detenidoDelTodo || hayAvisos) && (
+            <DatoResumen etiqueta="Avisos">
+              {detenidoDelTodo && <span className="font-semibold text-amber-800 dark:text-amber-300">Detenido por Producción</span>}
+              {pedido.scanCambiado && <span className="font-semibold text-amber-800 dark:text-amber-300">Parte nuevo</span>}
+              {avisaDeOFNueva(pedido) && <span className="font-semibold text-amber-800 dark:text-amber-300">OF nueva</span>}
+              {detenidas > 0 && !detenidoDelTodo && (
+                <span className="font-semibold text-red-700 dark:text-red-300">
+                  {`${detenidas} detenida${detenidas === 1 ? "" : "s"}`}
+                </span>
+              )}
+            </DatoResumen>
+          )}
+        </DatosResumen>
+      </ResumenFila>
     </div>
   );
 }

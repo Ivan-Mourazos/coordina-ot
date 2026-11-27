@@ -51,3 +51,11 @@ test("sin compañeros elegibles se explica el motivo y la flecha de volver sigue
   expect(html).toContain("Volver sin elegir revisor");
   expect(html).not.toContain('disabled=""');
 });
+
+test("con nombreCorto en la fila del tablero los nombres envuelven sin forzar scroll horizontal", () => {
+  const html = renderToStaticMarkup(createElement(PedirRevisor, {
+    operarios: OPERARIOS, excluirIds: [OPERARIOS[0].id], onConfirmar: noop, onCancelar: noop, nombreCorto: true,
+  }));
+  expect(html).toContain("flex-wrap");
+  expect(html).not.toContain("flex-nowrap");
+});

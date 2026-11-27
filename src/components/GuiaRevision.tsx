@@ -81,7 +81,7 @@ export function GuiaRevision({
         type="button"
         onClick={() => onAbrir(!abierta)}
         aria-expanded={abierta}
-        className={`flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-[11px] font-bold uppercase tracking-wide hover:bg-[var(--glass-highlight)] ${
+        className={`flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-[11px] font-bold uppercase tracking-wide ${
           pendiente ? "text-violet-700 dark:text-violet-300" : "text-teal-700 dark:text-teal-300"
         }`}
       >

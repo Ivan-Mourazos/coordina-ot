@@ -7,7 +7,8 @@ import type { EstadoOF, Operario, OF, OFFuera, Pedido, Rol } from "@/lib/types";
 import type { Seccion } from "@/lib/secciones";
 import { hoyISO, piezasTotal } from "@/lib/types";
 import { ESTADO, ROL, etiquetaCantidad } from "@/lib/estado";
-import { FamiliaTag } from "./FamiliaTag";
+import { CopiarCodigo } from "./CopiarCodigo";
+import { FamiliaIcon } from "./FamiliaTag";
 import { LiveDot } from "./LiveBadge";
 import { PedidoScan } from "./PedidoScan";
 import { ParteEscaneado } from "./ParteEscaneado";
@@ -56,7 +57,7 @@ import { botonPlantear } from "@/lib/herramientas";
 import { MenuAccionesOF } from "./MenuAccionesOF";
 import { tintaSobre } from "@/lib/tinta";
 import { IconoAviso, IconoCaja, IconoEtiqueta, IconoFabrica } from "./Iconos";
-import { subfamiliaAparte } from "@/lib/familia";
+import { familiaMeta, subfamiliaAparte } from "@/lib/familia";
 import { Pista } from "./Pista";
 import { useSoloLectura } from "./SoloLectura";
 import { DevolverAlHistorial } from "./DevolverAlHistorial";
@@ -1538,19 +1539,17 @@ function LineaRol({
 }) {
   return (
     <div
-      className="flex min-w-0 items-center gap-2"
+      className="flex min-w-0 items-center gap-1.5"
       title={`${rotulo}: ${op ? op.nombre : "sin asignar"}. Es de quién es el encargo; el tiempo que ha echado cada uno está justo debajo.`}
     >
-      <span
-        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${ROL[rol].chip}`}
-      >
-        {rotulo}
-      </span>
+      {/* El rótulo, en texto discreto del color del rol y no en un bloque en
+          mayúsculas: ocupaba más que el propio nombre (Iván, 27/11/2026). */}
+      <span className={`shrink-0 text-[11px] font-medium ${ROL[rol].texto}`}>{rotulo}</span>
       {control ?? (
         op ? (
           <span className="flex min-w-0 items-center gap-1.5">
             <span
-              className="grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold text-white"
+              className="grid size-4 shrink-0 place-items-center rounded-full text-[8px] font-bold text-white"
               style={{ background: op.color, color: tintaSobre(op.color) }}
             >
               {op.iniciales}
@@ -1724,8 +1723,14 @@ function OFRow({
         {/* El número de la OF, lo primero que se lee de la tarjeta: era más
             pequeño que la descripción de debajo y costaba encontrarlo
             (Iván y compañeros, 16/10/2026; elegido entre tres en captura). */}
+        {/* La familia, SOLO EL ICONO delante del número (Iván, 27/11/2026):
+            el chip con el nombre repetía lo que ya dice la cabecera del pedido
+            y ensuciaba la línea. El nombre, al pasar el ratón. */}
+        <span title={familiaMeta(of.familia).label} className="inline-flex shrink-0">
+          <FamiliaIcon familia={of.familia} className="size-4" />
+        </span>
         <span className="shrink-0 font-mono text-[15px] font-bold tracking-[0.02em] text-text">{of.codigo}</span>
-        <FamiliaTag familia={of.familia} />
+        <CopiarCodigo texto={of.codigo} dentroDeBoton={plegable} className="-ml-1.5" />
         {/* Subfamilia de RPS ("TOLDO NUEVO", "REPARACIONES", "ACCESORIOS TF").
             Es el detalle que le falta a la familia, que en RPS es muy ancha, y
             se enseña tal cual en vez de inventarle un sitio en nuestro
@@ -1742,7 +1747,11 @@ function OFRow({
             Va en el propio distintivo y no en una línea aparte porque es lo
             que se busca al repasarlas, y así se lee sin abrir nada. */}
         <span
-          className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${of.cerradaRps ? "bg-cyan-600/15 text-cyan-800 dark:text-cyan-300" : meta.chip}`}
+          // ESTILO HEROUI (Iván, 27/11/2026): píldora neutra con el punto del
+          // color del estado, en vez del bloque macizo en mayúsculas, que
+          // gritaba más que el número de la OF. El color sigue diciendo el
+          // estado; el texto, en minúscula, se lee de un vistazo.
+          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-text"
           title={
             of.fichandoRol
               ? of.fichandoRol === "revisar"
@@ -1764,14 +1773,13 @@ function OFRow({
               Al lado iba otro distintivo, «● REVISANDO» junto a «EN REVISIÓN»,
               que decía lo mismo dos veces (Iván, 16/10/2026). Quién y cuánto
               lleva están en la caja de tiempo. */}
-          {/* Del color del texto del distintivo, no del rol: el estado ya va
-              en ese color, y un punto violeta sobre violeta no se veía. */}
-          {of.fichandoRol && (
-            <span className="relative inline-flex size-1.5 shrink-0" aria-hidden>
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-70 motion-reduce:animate-none" />
-              <span className="relative inline-flex size-full rounded-full bg-current" />
-            </span>
-          )}
+          {/* El punto del estado; fichándose AHORA, el mismo punto late. */}
+          <span className="relative inline-flex size-1.5 shrink-0" aria-hidden>
+            {of.fichandoRol && (
+              <span className={`absolute inline-flex size-full animate-ping rounded-full opacity-70 motion-reduce:animate-none ${of.cerradaRps ? "bg-cyan-600" : meta.dot}`} />
+            )}
+            <span className={`relative inline-flex size-full rounded-full ${of.cerradaRps ? "bg-cyan-600" : meta.dot}`} />
+          </span>
           {of.cerradaRps
             ? of.cerradaRps.modo === "activo"
               ? "Cerrada en RPS"
@@ -1968,7 +1976,9 @@ function OFRow({
           {/* Autor y revisor en UNA línea: cada uno en su caja gastaba dos
               renglones para dos nombres. Si el selector de autor no cabe al lado,
               el revisor baja solo (flex-wrap). */}
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg bg-surface-2/70 px-2 py-1.5">
+          {/* Sin caja gris alrededor: una línea suelta basta para dos nombres
+              y la caja la hacía parecer otro bloque (Iván, 27/11/2026). */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
             <LineaRol
               rol="plantear"
               rotulo="Autor"

@@ -22,18 +22,29 @@ export function FamiliaIcon({
       aria-hidden
     >
       <path d={meta.icon} />
+      {/* Puntos mínimos rellenos (ollaos, eje de rueda, botones de capitoné…):
+          se pintan como subtrazo `h.01` con `strokeWidth = r * 2` en vez de
+          `<circle fill=...>` para que hereden `stroke` de `.familia-icon` y se
+          aclaren igual que el resto del icono en modo oscuro (`globals.css`). */}
+      {meta.iconDots?.map(([cx, cy, r = 1], i) => (
+        <path key={i} d={`M${cx} ${cy}h0.01`} strokeWidth={r * 2} />
+      ))}
     </svg>
   );
 }
 
 /** Etiqueta de familia: icono con el color propio + nombre en chip neutro.
- *  `soloIcono` para sitios estrechos (el icono lleva title con el nombre). */
+ *  `soloIcono` para sitios estrechos (el icono lleva title con el nombre).
+ *  `labelClassName` permite esconder solo el texto por container query
+ *  conservando el chip tintado y el `title` completo. */
 export function FamiliaTag({
   familia,
   soloIcono = false,
+  labelClassName = "",
 }: {
   familia: Familia | string;
   soloIcono?: boolean;
+  labelClassName?: string;
 }) {
   const meta = familiaMeta(familia);
   if (soloIcono) {
@@ -57,7 +68,7 @@ export function FamiliaTag({
       title={meta.label}
     >
       <FamiliaIcon familia={familia} className="size-3 shrink-0" />
-      <span className="truncate">{meta.label}</span>
+      <span className={`truncate ${labelClassName}`}>{meta.label}</span>
     </span>
   );
 }

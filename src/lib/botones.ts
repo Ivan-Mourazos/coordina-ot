@@ -22,7 +22,11 @@ export const BOTON_FILA =
 
 /** Solo al pasar el ratón por la fila (o al llegar con Tab). Fuera del flujo
  *  mientras no se ve: así en reposo el cliente tiene todo su sitio. */
-export const AL_PASAR = "hidden group-hover:inline-flex group-focus-within:inline-flex";
+// Foco VISIBLE y no `focus-within`: al cerrar la ficha, el navegador devuelve
+// el foco al código de la fila que se pulsó con el ratón, y con `focus-within`
+// esa fila se quedaba con los botones fuera y sus datos escondidos sin el
+// ratón encima (revisión del 27/11/2026).
+export const AL_PASAR = "hidden group-hover:inline-flex group-has-[:focus-visible]:inline-flex";
 
 /** «Pasar a revisión»: morado con borde, secundario junto al verde de fichar.
  *  `outline` y no `ring`: el relieve de `boton-3d` es un box-shadow y se comía

@@ -179,3 +179,110 @@ test("las filas del panel propio y de revisar llevan la clase del barrido de fic
   expect(htmlRevisar).toContain("fila-fichando-revisar");
   expect(htmlRevisar).not.toContain("[background-color:inherit]");
 });
+
+test("en columnas estrechas las filas siguen en una línea compacta sin cortar el código ni sacar scroll", () => {
+  const htmlPedido = pinta();
+  const pedido = PEDIDOS[0];
+  const ofsPorEmpezar = pedido.ofs.map((o) => ({
+    ...o,
+    ajenaOT: false,
+    detenida: false,
+    estado: "por_revisar" as const,
+    revisorId: "ivan",
+  }));
+  const htmlRevisar = renderToStaticMarkup(
+    createElement(LineaRevisar, {
+      facet: { pedido: { ...pedido, ofs: ofsPorEmpezar }, ofs: ofsPorEmpezar },
+      miId: "ivan",
+      operarios: OPERARIOS,
+      onOpen: noop,
+      onEmpezar: noop,
+      onFichar: noop,
+      onDesficharVarias: noop,
+    }),
+  );
+
+  for (const html of [htmlPedido, htmlRevisar]) {
+    // El número de pedido nunca se trunca.
+    expect(html).not.toMatch(/<b[^>]*\btruncate\b[^>]*>/);
+    // `@container` va en el envoltorio exterior y NUNCA en el mismo elemento
+    // que las variantes `@max-[…]` de la disposición (una container query no
+    // se aplica al propio contenedor).
+    const clasesContenedor = html.match(/^<div[^>]*class="([^"]*)"/)?.[1] ?? "";
+    expect(clasesContenedor).toContain("@container");
+    expect(clasesContenedor).not.toContain("@max-[");
+    // El hijo de disposición mantiene una sola línea (`@max-[30rem]:flex`, sin `flex-col` en reposo).
+    const resto = html.slice(html.indexOf(">") + 1);
+    expect(resto).toContain("@max-[30rem]:flex");
+    expect(resto).not.toContain("@max-[30rem]:flex-col");
+    expect(resto).toContain("@max-[34rem]:grid-cols-");
+    // Las familias van como iconos (todas, con su nombre en el title), sin «+N».
+    expect(resto).toContain("familia-icon");
+    expect(resto).not.toMatch(/>\+\d+</);
+    // Al pasar el ratón cede lo que estorba a los botones (fechas a 30rem, nº de OF a 20rem).
+    expect(resto).toMatch(/@max-\[(30|20)rem\]:group-hover:hidden/);
+    expect(html).not.toContain("overflow-x-auto");
+  }
+  // `data-pedido` sigue en la caja exterior para las transiciones de paseAnimado.
+  expect(htmlPedido).toMatch(/^<div[^>]*data-pedido=/);
+});
+
+test("LineaRevisar quita «Revisando / Por empezar» y muestra «Reanudar» cuando la OF ya está en revisión", () => {
+  const pedido = PEDIDOS[0];
+  const ofsEnRevision = pedido.ofs.map((o) => ({
+    ...o,
+    ajenaOT: false,
+    detenida: false,
+    fichable: true,
+    cerradaRps: undefined,
+    autorId: "alberto",
+    revisorId: "ivan",
+    estado: "en_revision" as const,
+  }));
+  const html = renderToStaticMarkup(
+    createElement(LineaRevisar, {
+      facet: { pedido: { ...pedido, ofs: ofsEnRevision }, ofs: ofsEnRevision },
+      miId: "ivan",
+      operarios: OPERARIOS,
+      onOpen: noop,
+      onEmpezar: noop,
+      onFichar: noop,
+      onDesficharVarias: noop,
+    }),
+  );
+  expect(html).not.toContain("Revisando");
+  expect(html).not.toContain("Por empezar");
+  expect(html).toContain(">Reanudar</button>");
+  expect(html).toContain("Lo plantea ");
+});
+
+test("en estrecho los avisos de PedidoLinea usan iconos SVG con texto sr-only completo y sin letras sueltas", () => {
+  const pedido = {
+    ...PEDIDOS[0],
+    scanCambiado: true,
+    reabiertoPor: [PEDIDOS[0].ofs[0].id],
+  };
+  const ofs = pedido.ofs.map((o, i) => ({
+    ...o,
+    ajenaOT: false,
+    autorId: i === 0 ? null : "ivan",
+    detenida: i === 1,
+  }));
+  const html = renderToStaticMarkup(
+    createElement(PedidoLinea, {
+      facet: { pedido: { ...pedido, ofs }, locationId: "ivan", ofs },
+      fase: "planteando" as const,
+      onOpen: noop,
+      onFichar: noop,
+      onDesficharVarias: noop,
+      completarPedido: noop,
+      operarios: OPERARIOS,
+    }),
+  );
+  expect(html).toContain(">Parte nuevo</span>");
+  expect(html).toContain(">OF nueva</span>");
+  expect(html).toContain(">1 detenida</span>");
+  expect(html).toContain("@max-[30rem]:sr-only");
+  expect(html).toContain("<svg");
+  expect(html).not.toContain(">P</span>");
+});

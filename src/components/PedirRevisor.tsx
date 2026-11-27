@@ -35,7 +35,11 @@ export function BotonesRevisor({
   const excluidos = new Set(excluirIds.filter(Boolean));
   const elegibles = operarios.filter((o) => !excluidos.has(o.id));
   return (
-    <div ref={grupo} role="group" aria-label="Compañeros que pueden revisar" className={`flex items-center gap-1 ${nombreCorto ? "flex-nowrap" : "flex-wrap"}`}>
+    // Siempre `flex-wrap`, también con `nombreCorto`: antes `flex-nowrap` junto
+    // al `overflow-x-auto` de PedidoLinea sacaba barra de scroll horizontal en
+    // las columnas estrechas del tablero. Si caben, van en una línea; si no,
+    // saltan de línea dentro de la fila.
+    <div ref={grupo} role="group" aria-label="Compañeros que pueden revisar" className="flex min-w-0 flex-wrap items-center gap-1">
       {elegibles.map((o) => {
         const quitable = !!onQuitar && o.id === valorActual;
         return (
@@ -47,7 +51,7 @@ export function BotonesRevisor({
           aria-pressed={o.id === valorActual}
           disabled={deshabilitado}
           onClick={() => (quitable ? onQuitar?.() : onElegir(o.id))}
-          className={`inline-flex h-6 items-center gap-1.5 rounded-full border border-border pl-0.5 pr-2 text-[11px] font-semibold hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-[-2px]! focus-visible:outline-current disabled:cursor-wait disabled:opacity-60 ${o.id === valorActual ? ROL.revisar.chip : "bg-surface-2 text-text"}`}
+          className={`inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border border-border pl-0.5 pr-2 text-[11px] font-semibold hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-[-2px]! focus-visible:outline-current disabled:cursor-wait disabled:opacity-60 ${o.id === valorActual ? ROL.revisar.chip : "bg-surface-2 text-text"}`}
           style={o.id === valorActual ? { borderColor: ROL.revisar.color } : undefined}
         >
           <OpDot color={o.color} iniciales={o.iniciales} />
@@ -124,10 +128,11 @@ export function PedirRevisor({
   }
 
   return (
-    // EN LA LÍNEA DE LOS BOTONES, en su lugar (Iván, 26/11/2026): salía
-    // debajo y la tarjeta crecía; ahora ocupa el sitio de los botones mientras
-    // se elige, y la flecha de delante vuelve atrás sin elegir.
-    <div className={`flex min-w-0 items-center gap-1 ${nombreCorto ? "flex-nowrap" : "flex-wrap"}`} aria-busy={guardando} onClick={(e) => e.stopPropagation()}>
+    // EN LA LÍNEA DE LOS BOTONES, en su lugar (Iván, 26/11/2026): si todos los
+    // compañeros caben en una línea, la fila no crece; si la columna es estrecha,
+    // `BotonesRevisor` salta de línea y la flecha queda arriba a la izquierda,
+    // sin scroll horizontal.
+    <div className="flex min-w-0 items-start gap-1" aria-busy={guardando} onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
         aria-label="Volver sin elegir revisor"
@@ -149,7 +154,7 @@ export function PedirRevisor({
           Solo los nombres; se pulsa uno y se cierra. */}
       <BotonesRevisor operarios={operarios} excluirIds={excluirIds} valorActual={valorInicial}
         onElegir={(id) => void elegir(id)} deshabilitado={guardando} nombreCorto={nombreCorto} />
-      {guardando && <span role="status" className="text-xs text-text-muted">Guardando…</span>}
+      {guardando && <span role="status" className="shrink-0 text-xs leading-6 text-text-muted">Guardando…</span>}
     </div>
   );
 }

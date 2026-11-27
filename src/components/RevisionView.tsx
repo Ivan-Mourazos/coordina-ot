@@ -24,6 +24,7 @@ import { GrupoAcordeon, useElementoAcordeon } from "./Acordeon";
 import { PedidoCodigo } from "./PedidoCodigo";
 import { FilaOF } from "./FilaOF";
 import { tintaSobre } from "@/lib/tinta";
+import { LiveDot } from "./LiveBadge";
 import { useSoloLectura } from "./SoloLectura";
 
 // ─── Vista Revisiones ────────────────────────────────────────────────────────
@@ -57,7 +58,9 @@ const COLUMNAS_REVISION =
 
 const COLUMNAS: { estado: EstadoOF; titulo: string; mio: string }[] = [
   { estado: "por_revisar", titulo: "Por revisar", mio: "Por empezar" },
-  { estado: "en_revision", titulo: "En revisión", mio: "Revisando" },
+  // «Empezadas» y no «Revisando»: es el ESTADO de la OF (la abriste y no la
+  // has cerrado), no que tengas el reloj en marcha ahora (Iván, 27/11/2026).
+  { estado: "en_revision", titulo: "En revisión", mio: "Empezadas" },
   { estado: "aprobada", titulo: "Aprobadas", mio: "Aprobadas por mí" },
   { estado: "devuelta", titulo: "Devueltas", mio: "Devueltas por mí" },
 ];
@@ -141,13 +144,20 @@ export function RevisionView({
   const columnas = COLUMNAS.map((col) => ({ ...col, facets: facetsDe(col.estado) }));
   const total = columnas.reduce((n, c) => n + c.facets.reduce((m, f) => m + f.ofs.length, 0), 0);
 
-  // Quién tiene revisiones abiertas ahora mismo. Solo en el alcance de equipo:
-  // en "solo mías" la respuesta sería siempre yo, y ya la da la columna.
+  // Quién tiene revisiones abiertas. Solo en el alcance de equipo: en "solo
+  // mías" la respuesta sería siempre yo, y ya la da la columna.
+  // ABIERTAS NO ES "AHORA": `en_revision` es el estado de la OF y se queda
+  // así con el reloj parado. Se rotulaba «Revisando ahora» y nombraba a gente
+  // que no estaba fichando (Iván, 27/11/2026). Quien sí tiene el reloj de
+  // revisar en marcha lleva el punto vivo; el resto, solo su cuenta.
   const porRevisor = new Map<string, number>();
+  const revisandoAhora = new Set<string>();
   for (const p of pedidos)
-    for (const o of p.ofs)
+    for (const o of p.ofs) {
       if (o.estado === "en_revision" && o.revisorId)
         porRevisor.set(o.revisorId, (porRevisor.get(o.revisorId) ?? 0) + 1);
+      for (const f of o.fichandoAhora ?? []) if (f.rol === "revisar") revisandoAhora.add(f.operarioId);
+    }
 
   return (
     <>
@@ -165,16 +175,18 @@ export function RevisionView({
         <span className="text-[11px] text-text-muted">{total} OF en total</span>
         {!mias && porRevisor.size > 0 && (
           <span className="ml-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-text-muted">Revisando ahora:</span>
+            <span className="text-[11px] text-text-muted">Con revisiones empezadas:</span>
             {[...porRevisor.entries()].map(([id, n]) => {
               const op = operarios.find((o) => o.id === id);
               if (!op) return null;
+              const vivo = revisandoAhora.has(id);
               return (
                 <span
                   key={id}
                   className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-text ring-1 ring-border"
-                  title={`${op.nombre} tiene ${n} OF en revisión`}
+                  title={`${op.nombre} tiene ${n} OF en revisión${vivo ? " y está revisando ahora" : ""}`}
                 >
+                  {vivo && <LiveDot rol="revisar" className="size-1.5" />}
                   <span
                     className="grid size-4 place-items-center rounded-full text-[9px] font-bold text-white"
                     style={{ background: op.color, color: tintaSobre(op.color) }}
