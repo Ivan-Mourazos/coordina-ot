@@ -47,6 +47,7 @@ import type { Yo } from "./LoginGate";
 import { SoloLecturaNotasProvider, SoloLecturaProvider } from "./SoloLectura";
 import { esSoloLectura, puedeEscribirNotas, puedeVerComoDireccion } from "@/lib/personas";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { CasillaFila } from "./CasillaFila";
 import { MiFichaje } from "./MiFichaje";
 import { TecnicoCard } from "./TecnicoCard";
 import { Notificaciones } from "./Notificaciones";
@@ -80,7 +81,7 @@ import { accionAlFichar } from "@/lib/accion-pedido";
 import { crearColaGuardados, type ColaGuardados } from "@/lib/cola-guardados";
 import { prepararPaseRevision, solicitarPaseRevision } from "@/lib/pase-revision";
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
-import { codigosOFDelPase, decidirPase, hayEleccion, ofsDelPase } from "@/lib/paso-parcial";
+import { codigosOFDelPase, decidirCierreVarias, decidirPase, hayEleccion, ofsDelPase, ofsParaCerrarVarias } from "@/lib/paso-parcial";
 import { avisosTrasCerrarEnRps } from "@/lib/cerrar-of-avisos";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
 import { CambiarCorreo, CambiarImpresion } from "./CambiarPlanteamiento";
@@ -2711,6 +2712,40 @@ export function Board({
     },
     [miId, marcarCerradaEnRps],
   );
+  // «Dar por terminadas en RPS…» (el "⋯" del pedido, Iván 27/11/2026): elegir
+  // qué OF del pedido se dan por terminadas en RPS de golpe. Mismo camino que
+  // el pase parcial (`pasarParcial`): se imprime su planteamiento, sin correo.
+  const [cerrarVarias, setCerrarVarias] = useState<{ pedidoId: string; marcadas: ReadonlySet<string> } | null>(null);
+  const [vistaCerrarVarias, setVistaCerrarVarias] = useState<{ pedidoId: string; datos: VistaPlanteamiento } | null>(null);
+  const [imprimirCerrarVarias, setImprimirCerrarVarias] = useState(true);
+  const abrirCerrarVarias = useCallback((pedidoId: string) => {
+    const pedido = pedidosRef.current.find((p) => p.id === pedidoId);
+    if (!pedido) return;
+    pedidoDelDialogo.current = pedidoId;
+    // Ninguna marcada de serie: se eligen a propósito.
+    setCerrarVarias({ pedidoId, marcadas: new Set() });
+    setImprimirCerrarVarias(true);
+    setVistaCerrarVarias(null);
+    if (seccionActual === "ot" && pedido.codigo) {
+      const params = new URLSearchParams({ pedido: pedido.codigo });
+      for (const { of } of ofsParaCerrarVarias(pedido.ofs, miId).filter((x) => x.elegible)) params.append("of", of.codigo);
+      fetch(`/api/planteamiento?${params}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: VistaPlanteamiento | null) => d && pedidoDelDialogo.current === pedidoId && setVistaCerrarVarias({ pedidoId, datos: d }))
+        .catch(() => {});
+    }
+  }, [miId, seccionActual]);
+  const pedidoCerrarVarias = pedidos.find((p) => p.id === cerrarVarias?.pedidoId) ?? null;
+  const listaCerrarVarias = useMemo(() => ofsParaCerrarVarias(pedidoCerrarVarias?.ofs ?? [], miId), [pedidoCerrarVarias, miId]);
+  const decisionCerrarVarias = pedidoCerrarVarias && cerrarVarias
+    ? decidirCierreVarias(pedidoCerrarVarias.ofs, miId, cerrarVarias.marcadas)
+    : ({ tipo: "nada" } as const);
+  const datosCerrarVarias = vistaCerrarVarias && vistaCerrarVarias.pedidoId === cerrarVarias?.pedidoId ? vistaCerrarVarias.datos : null;
+  // Lo que saldría por la impresora: si algo ya se imprimió (una OF pasada
+  // antes), solo lo que falta.
+  const ficherosCerrarVarias = datosCerrarVarias && datosCerrarVarias.modo !== "off"
+    ? seleccionImpresion(datosCerrarVarias, null, true)
+    : [];
   const pedidoAPasar = pedidos.find((p) => p.id === pasarPendiente) ?? null;
   const listaPase = useMemo(() => ofsDelPase(pedidoAPasar?.ofs ?? [], miId), [pedidoAPasar, miId]);
   // Solo donde se pasa con «Pasar a Producción»: en Diseño e Impresión el
@@ -3471,6 +3506,7 @@ export function Board({
         onDesfichar={desficharOF}
         onDesficharVarias={desficharVarias}
         onCerradoEnRps={marcarCerradaEnRps}
+        onCerrarVarias={abrirCerrarVarias}
         onGemelaReintentada={marcarGemelaResuelta}
         ofIdsFichandoYo={ofIdsFichandoYo}
         // Mi reloj, arriba de la ficha: con el parte abierto la píldora del
@@ -3814,6 +3850,130 @@ export function Board({
           });
         }}
         onCancelar={() => setPasarPendiente(null)}
+      />
+
+      <ConfirmDialog
+        abierto={cerrarVarias !== null && pedidoCerrarVarias !== null}
+        titulo={`Dar por terminadas OF de ${pedidoCerrarVarias?.codigo ?? ""}`}
+        ancho
+        tono="neutra"
+        textoConfirmar={
+          decisionCerrarVarias.tipo === "cerrar" && decisionCerrarVarias.ofIds.length > 1
+            ? `Dar por terminadas las ${decisionCerrarVarias.ofIds.length}`
+            : "Dar por terminada"
+        }
+        confirmarDesactivado={decisionCerrarVarias.tipo !== "cerrar"}
+        mensaje={
+          <>
+            <p className="text-sm text-text">
+              Marca las OF que ya están. Producción las verá terminadas en RPS, con la fecha de hoy y a tu nombre; antes se para el reloj de quien las esté fichando. Las demás se quedan en el panel.
+            </p>
+            <div className="mt-4">
+              <ApartadoPase titulo="Qué OF se dan por terminadas">
+                {(() => {
+                  const elegibles = listaCerrarVarias.filter((x) => x.elegible).map((x) => x.of.id);
+                  const marcadas = elegibles.filter((id) => cerrarVarias?.marcadas.has(id)).length;
+                  const poner = (ids: string[]) => setCerrarVarias((prev) => (prev ? { ...prev, marcadas: new Set(ids) } : prev));
+                  return (
+                    <div className="mb-2 flex items-center gap-3 text-[11px]">
+                      <span className="text-text-muted">
+                        {marcadas === 0 ? "Ninguna marcada" : `${marcadas} de ${elegibles.length} marcadas`}
+                      </span>
+                      <span className="ml-auto flex gap-1">
+                        <button type="button" className="chip-3d rounded-full px-2.5 py-0.5 font-semibold text-text disabled:opacity-40" disabled={marcadas === elegibles.length} onClick={() => poner(elegibles)}>
+                          Marcar todas
+                        </button>
+                        <button type="button" className="chip-3d rounded-full px-2.5 py-0.5 font-semibold text-text disabled:opacity-40" disabled={marcadas === 0} onClick={() => poner([])}>
+                          Ninguna
+                        </button>
+                      </span>
+                    </div>
+                  );
+                })()}
+                <div className="-mx-1 flex max-h-64 flex-col gap-1 overflow-y-auto p-1">
+                  {listaCerrarVarias.map(({ of, elegible, motivo }) => (
+                    <CasillaFila
+                      key={of.id}
+                      marcada={elegible && !!cerrarVarias?.marcadas.has(of.id)}
+                      desactivada={!elegible}
+                      onCambiar={(marcar) =>
+                        setCerrarVarias((prev) => {
+                          if (!prev) return prev;
+                          const m = new Set(prev.marcadas);
+                          if (marcar) m.add(of.id);
+                          else m.delete(of.id);
+                          return { ...prev, marcadas: m };
+                        })
+                      }
+                    >
+                      <span className="flex min-w-0 items-baseline gap-1.5">
+                        <b className="shrink-0 font-semibold">{of.codigo}</b>
+                        {of.descripcion && <span className="truncate text-text-muted">{of.descripcion}</span>}
+                      </span>
+                      {motivo === "detenida" && <span className="mt-0.5 block text-amber-800 dark:text-amber-300">Detenida: no se cierra</span>}
+                      {motivo === "en_revision" && <span className="mt-0.5 block">En revisión: se cierra cuando la aprueben</span>}
+                      {motivo === "de_otro" && (
+                        <span className="mt-0.5 block">
+                          De {operarios.find((o) => o.id === of.autorId)?.nombre ?? of.autorId ?? "sin asignar"}: la cierra quien la lleva
+                        </span>
+                      )}
+                    </CasillaFila>
+                  ))}
+                </div>
+                {decisionCerrarVarias.tipo === "todas" && (
+                  <p role="alert" className="mt-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                    Deja al menos una sin marcar: la última sale con «Pasar a Producción», con el pedido entero.
+                  </p>
+                )}
+              </ApartadoPase>
+            </div>
+            {datosCerrarVarias && datosCerrarVarias.modo !== "off" && (
+              <div className="mt-2.5 flex flex-col gap-2.5 text-xs">
+                <ApartadoPase titulo="Impresión">
+                  {ficherosCerrarVarias.length > 0 ? (
+                    <div className="-mx-1">
+                      <CasillaFila marcada={imprimirCerrarVarias} onCambiar={setImprimirCerrarVarias}>
+                        Imprimir el planteamiento en Producción
+                        <span className="mt-0.5 block text-text-muted">{ficherosCerrarVarias.join(", ")}</span>
+                      </CasillaFila>
+                    </div>
+                  ) : (
+                    <p className="text-text">
+                      {datosCerrarVarias.ficheros.length === 0 ? textoAntesDePasar(datosCerrarVarias) : "El planteamiento ya se imprimió: no se imprime otra vez."}
+                    </p>
+                  )}
+                </ApartadoPase>
+                {textoCorreoAntesDePasar(datosCerrarVarias) && (
+                  <ApartadoPase titulo="Correo">
+                    <p className="text-text">Cerrando solo unas OF no se manda correo.</p>
+                  </ApartadoPase>
+                )}
+              </div>
+            )}
+          </>
+        }
+        onConfirmar={() => {
+          const pedido = pedidoCerrarVarias;
+          setCerrarVarias(null);
+          if (!pedido || decisionCerrarVarias.tipo !== "cerrar") return;
+          const datos = datosCerrarVarias;
+          const imprimir = imprimirCerrarVarias && ficherosCerrarVarias.length > 0 && !!datos && !!pedido.codigo;
+          if (imprimir && datos) {
+            // Lo que no sale solo se abre AQUÍ, dentro del clic (fuera de él
+            // el navegador lo bloquea), igual que al pasar el pedido.
+            const seImprimen = datos.ficheros.filter((f) => ficherosCerrarVarias.includes(f.nombre));
+            for (const url of urlsAMano(pedido.codigo, seImprimen, datos.puedeOt ?? false, AJUSTES_DE_SERIE)) abrirParaImprimir(url);
+            for (const f of seImprimen.filter((x) => !x.todoA4 && !x.tamanos)) {
+              abrirParaImprimir(`/api/planteamiento/fichero?pedido=${encodeURIComponent(pedido.codigo)}&nombre=${encodeURIComponent(f.nombre)}`);
+            }
+          }
+          void pasarParcial(
+            decisionCerrarVarias.ofIds,
+            seccionDelPase,
+            imprimir ? { imprimirPlanteamiento: true, imprimirSolo: ficherosCerrarVarias, impresion: AJUSTES_DE_SERIE } : null,
+          );
+        }}
+        onCancelar={() => setCerrarVarias(null)}
       />
 
       {/* Cambiar de técnico (login apagado) y salir (login encendido) comparten
