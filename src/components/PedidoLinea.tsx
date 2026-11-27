@@ -235,7 +235,9 @@ export function PedidoLinea({
       {fichandoAlguien && (
         <span
           title={fichandoYo.length > 0 ? "Lo estás fichando tú" : "Alguien lo está fichando ahora"}
-          className={`size-1.5 shrink-0 rounded-full ring-2 ${
+          // `mx-0.5`: el halo (ring-2) sale 2 px por fuera y la columna del
+          // cliente tiene overflow-hidden; sin margen se cortaba a la izquierda.
+          className={`mx-0.5 size-1.5 shrink-0 rounded-full ring-2 ${
             fichandoAlguien.fichandoRol === "revisar"
               ? "bg-violet-500 ring-violet-500/30"
               : "bg-emerald-500 ring-emerald-500/30"
@@ -549,15 +551,22 @@ export function PedidoLinea({
             </span>
 
             {/* Columna 5: cuenta de OF (sin minutos por debajo de 34rem; cede a ≤ 11.5rem). */}
-            <span className={`col-start-5 row-start-1 w-[4.75rem] shrink-0 text-right text-[10px] text-text-muted @max-[34rem]:w-auto @max-[11.5rem]:hidden ${cederSiFalta}`}>
+            {/* Dos huecos fijos, la cuenta y el tiempo, para que «OF» y los
+                minutos queden en columna en todas las filas: en un solo texto
+                alineado a la derecha, «1 OF» se corría según hubiera tiempo o
+                no (Iván, 27/11/2026). El hueco del tiempo está aunque vaya
+                vacío. */}
+            <span className={`col-start-5 row-start-1 flex shrink-0 items-center text-[10px] text-text-muted @max-[11.5rem]:hidden ${cederSiFalta}`}>
+              <span className="w-[2.25rem] shrink-0 whitespace-nowrap text-right tabular-nums @max-[34rem]:w-auto">
+                {ofs.length} OF
+              </span>
               {/* Redondeado a minutos: `fmtMin` sabe enseñar segundos y aquí
                   salía "14m 7s" al lado de "36m" y "42m". En una lista que se
                   recorre con la vista, los segundos son ruido; el detalle fino
                   está en «Tareas y tiempos». */}
-              {ofs.length} OF
-              {minutos > 0 && (
-                <span className="@max-[34rem]:hidden">{` · ${fmtMin(Math.round(minutos))}`}</span>
-              )}
+              <span className="w-[3.25rem] shrink-0 whitespace-nowrap pl-1 tabular-nums @max-[34rem]:hidden">
+                {minutos > 0 ? `· ${fmtMin(Math.round(minutos))}` : ""}
+              </span>
             </span>
 
             {/* LOS BOTONES, en su hueco a la derecha (no superpuestos). Al pasar
