@@ -190,8 +190,8 @@ export function CabeceraFicha({
   acciones,
   arriba,
 }: {
-  /** Encima del código, sin moverse al bajar por la ficha: mi reloj en marcha
-   *  (ver `franja` en MiFichaje). */
+  /** En la línea del código, tras la prioridad: mi reloj en marcha (ver
+   *  `franja` en MiFichaje). Sin línea propia para que no empuje la ficha. */
   arriba?: ReactNode;
   codigo: string;
   prioridad?: Prioridad;
@@ -211,21 +211,23 @@ export function CabeceraFicha({
 }) {
   return (
     <div className="min-w-0 flex-1">
-      {arriba}
       <div className="flex items-center gap-2 pr-10">
-        <h2 className="font-mono text-lg font-bold text-text bajo:text-base">{codigo}</h2>
+        <h2 className="shrink-0 font-mono text-lg font-bold text-text bajo:text-base">{codigo}</h2>
         {/* Solo la urgente, como en la bandeja: la normal salía en todos los
             pedidos y dejaba de destacar justo cuando corría prisa. */}
         {prioridad === 3 && (
           <span
-            className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+            className="shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-bold"
             style={{ background: PRIORIDAD[prioridad].color, color: PRIORIDAD[prioridad].tinta }}
             title={`Prioridad ${PRIORIDAD[prioridad].label}`}
           >
             P{prioridad} {PRIORIDAD[prioridad].label}
           </span>
         )}
-        {acciones && <div className="ml-auto">{acciones}</div>}
+        {/* En la misma línea y no encima: con línea propia, al empezar a
+            fichar todo el bloque de la ficha bajaba de golpe (27/11/2026). */}
+        {arriba}
+        {acciones && <div className="ml-auto shrink-0">{acciones}</div>}
       </div>
       {/* Tres líneas y no cuatro (Iván, 08/11/2026): el código con los
           atajos y la ✕; el cliente; y los datos con, a su derecha, lo de
