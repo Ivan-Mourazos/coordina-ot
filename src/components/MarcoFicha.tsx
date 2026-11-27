@@ -188,11 +188,7 @@ export function CabeceraFicha({
   familias = [],
   extra,
   acciones,
-  arriba,
 }: {
-  /** En la línea del código, tras la prioridad: mi reloj en marcha (ver
-   *  `franja` en MiFichaje). Sin línea propia para que no empuje la ficha. */
-  arriba?: ReactNode;
   codigo: string;
   prioridad?: Prioridad;
   cliente?: string | null;
@@ -224,9 +220,6 @@ export function CabeceraFicha({
             P{prioridad} {PRIORIDAD[prioridad].label}
           </span>
         )}
-        {/* En la misma línea y no encima: con línea propia, al empezar a
-            fichar todo el bloque de la ficha bajaba de golpe (27/11/2026). */}
-        {arriba}
         {acciones && <div className="ml-auto shrink-0">{acciones}</div>}
       </div>
       {/* Tres líneas y no cuatro (Iván, 08/11/2026): el código con los

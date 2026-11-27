@@ -97,8 +97,7 @@ export function MiFichaje({
     // sección) no hay a dónde ir, pero el aviso sigue valiendo.
     const fuera = pedidosCorriendo.filter((p) => p.id !== franja.pedidoId);
     const irA = !aqui && fuera.length === 1 ? fuera[0] : null;
-    // La frase entera va al `title` y al lector de pantalla; en la píldora,
-    // la corta, que comparte línea con el código del pedido.
+    // La frase que se ve; la de horas y OF, en el `title`.
     const largo = aqui
       ? // Si además corren OF de otro pedido, que no se pierda.
         `${ROL[ab.rol].label} este pedido${fuera.length ? ` y ${fuera.length === 1 ? fuera[0].codigo : `${fuera.length} más`}` : ""}`
@@ -107,30 +106,23 @@ export function MiFichaje({
         : fuera.length > 1
           ? `${ROL[ab.rol].label} otros ${fuera.length} pedidos`
           : `${ROL[ab.rol].label} otro pedido`;
-    const corto = aqui
-      ? `${ROL[ab.rol].label}${fuera.length ? ` (+${fuera.length})` : ""}`
-      : fuera.length === 1
-        ? `En ${fuera[0].codigo}`
-        : fuera.length > 1
-          ? `En ${fuera.length} pedidos`
-          : "Otro pedido";
     return (
       <div
         role="status"
-        title={`${largo} · ${titulo}`}
-        // Va EN la línea del código, no en una suya encima: con línea propia,
-        // al empezar a fichar todo el bloque de la ficha bajaba de golpe
-        // (Iván, 27/11/2026). Por eso es corta y se encoge antes que el código.
+        title={titulo}
+        // Al PIE de la ficha (Iván, 27/11/2026). Encima del código empujaba
+        // la ficha al empezar a fichar, y en la línea del código no cabía con
+        // «Pedir visita» y los atajos: se quedaba en nada. Abajo tiene el
+        // ancho entero y, al salir, solo encoge la zona que desplaza.
         //
         // El mismo barrido que la tarjeta de quien ficha (`fila-fichando-*`,
         // hero.css), en píldora de HeroUI: radio entero, sin borde y la sombra
         // de los paneles. Si el reloj es de OTRO pedido, la onda va en ámbar
         // (`franja-fichaje-otro`): es un aviso, no lo que tienes delante.
-        className={`fila-fichando-${ab.rol} ${aqui ? ROL[ab.rol].texto : "franja-fichaje-otro text-amber-800 dark:text-amber-200"} flex min-w-0 shrink items-center gap-2 whitespace-nowrap rounded-full py-0.5 pl-3 pr-0.5 text-xs font-bold shadow-[var(--hero-sombra-panel)]`}
+        className={`fila-fichando-${ab.rol} ${aqui ? ROL[ab.rol].texto : "franja-fichaje-otro text-amber-800 dark:text-amber-200"} flex items-center gap-2 rounded-full py-1 pl-3.5 pr-1 text-xs font-bold shadow-[var(--hero-sombra-panel)]`}
       >
         <LiveDot rol={ab.rol} className="size-2 shrink-0" />
-        <span aria-hidden className="min-w-0 truncate">{corto}</span>
-        <span className="sr-only">{largo}</span>
+        <span className="min-w-0 flex-1 truncate">{largo}</span>
         <span className="sr-only">{titulo}</span>
         <span className="shrink-0 tabular-nums">{fmtHMS(acumuladoSeg)}</span>
         {irA && (

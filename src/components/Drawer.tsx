@@ -329,7 +329,7 @@ export function Drawer({
    *  el reloj de otro, que este botón no puede parar. Mismo criterio que usa
    *  PedidoLinea. */
   ofIdsFichandoYo?: ReadonlySet<string>;
-  /** Mi reloj en marcha, en una franja arriba de la ficha (ver `franja` en
+  /** Mi reloj en marcha, en una franja al pie de la ficha (ver `franja` en
    *  MiFichaje). La pinta el Board, que es quien tiene el fichaje; sin reloj
    *  devuelve `null`. */
   miFichaje?: (pedidoId: string) => React.ReactNode;
@@ -725,6 +725,7 @@ export function Drawer({
   // para plantear, abre el pedido en Pedidos de aquella web (ver
   // `botonPlantear`). Con `miId`, «Corregir» solo le sale al autor.
   const plantear = soloLectura ? null : botonPlantear(pedido.codigo, pedido.ofs, miId, pedido.cliente);
+  const reloj = miFichaje?.(pedido.id);
 
   return (
     <MarcoFicha
@@ -732,7 +733,6 @@ export function Drawer({
       onCerrar={onClose}
       cabecera={
         <CabeceraFicha
-          arriba={miFichaje?.(pedido.id)}
           codigo={pedido.codigo}
           prioridad={pedido.prioridad}
           cliente={pedido.cliente}
@@ -806,8 +806,12 @@ export function Drawer({
       }
       // Solo cuando hay algo que hacer. La regla de los roles, que iba aquí
       // en todas las fichas, pasó al ⓘ junto al autor, en la cabecera.
+      //
+      // Mi reloj en marcha va aquí, al pie, debajo de los botones (Iván,
+      // 27/11/2026): junto al código no cabía con «Pedir visita» y los
+      // atajos, y con línea propia arriba empujaba la ficha al empezar.
       pie={
-        listoParaCompletar || (pedido.recuperado && !soloLectura) ||
+        reloj || listoParaCompletar || (pedido.recuperado && !soloLectura) ||
         (finalizarAbajo && paraImpreso.length > 0 && !soloLectura) ? (
         <>
           {/* «Finalizar todo» (Diseño): donde y como «Pasar a Producción»,
@@ -842,6 +846,7 @@ export function Drawer({
           {!soloLectura && pedido.recuperado && (
             <DevolverAlHistorial pedido={pedido.codigo} seccion={seccion.id} miId={miId} onDevuelto={onClose} />
           )}
+          {reloj}
         </>
         ) : undefined
       }
