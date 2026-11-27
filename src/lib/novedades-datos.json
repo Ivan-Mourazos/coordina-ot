@@ -1,5 +1,18 @@
 [
   {
+    "id": "2026-11-27",
+    "hasta": "6ff6096",
+    "cambios": [
+      {
+        "tipo": "nuevo",
+        "titulo": "En el «⋯» del pedido, «Dar por terminadas…»: eliges qué OF cierras y el resto se queda en el panel",
+        "apartado": "ot",
+        "detalle": "Se abre con todas marcadas y desmarcas las que dejas para luego. «Pasar a Producción» pasa siempre el pedido entero.",
+        "tanda": 1
+      }
+    ]
+  },
+  {
     "id": "2026-11-26",
     "hasta": "d93e185",
     "cambios": [
