@@ -81,7 +81,7 @@ import { accionAlFichar } from "@/lib/accion-pedido";
 import { crearColaGuardados, type ColaGuardados } from "@/lib/cola-guardados";
 import { prepararPaseRevision, solicitarPaseRevision } from "@/lib/pase-revision";
 import { faseEnUnaPalabra, ofOcultaDeOT, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
-import { codigosOFDelPase, decidirPase, hayEleccion, ofsDelPase } from "@/lib/paso-parcial";
+import { codigosOFDelPase, decidirPaseParcial, ofsDelPaseParcial, puedeDarPorTerminadas } from "@/lib/paso-parcial";
 import { avisosTrasCerrarEnRps } from "@/lib/cerrar-of-avisos";
 import { marcarComoImpreso, ofsParaImpreso } from "@/lib/impreso";
 import { CambiarCorreo, CambiarImpresion } from "./CambiarPlanteamiento";
@@ -2504,10 +2504,15 @@ export function Board({
   const [desmarcadasPase, setDesmarcadasPase] = useState<ReadonlySet<string>>(new Set());
   // Pase parcial en marcha: se cierran de una en una y tarda.
   const [pasandoParcial, setPasandoParcial] = useState<{ hechas: number; total: number } | null>(null);
-  const completarPedido = useCallback((pedidoId: string) => {
+  // «Dar por terminadas…» (el "⋯" del pedido, Iván 27/11/2026): el mismo
+  // diálogo, pero con la lista de OF para desmarcar; pasan solo las marcadas y
+  // el pedido se queda. «Pasar a Producción» es siempre el pedido entero.
+  const [elegirOFs, setElegirOFs] = useState(false);
+  const completarPedido = useCallback((pedidoId: string, elegir = false) => {
     const pedido = pedidos.find((p) => p.id === pedidoId);
-    if (pedido && puedePasarAProduccion(pedido, miId)) {
+    if (pedido && (elegir ? puedeDarPorTerminadas(pedido, miId) : puedePasarAProduccion(pedido, miId))) {
       pedidoDelDialogo.current = pedidoId;
+      setElegirOFs(elegir);
       setPasarPendiente(pedidoId);
       setDesmarcadasPase(new Set());
       setImprimirAlPasar(true);
@@ -2713,12 +2718,17 @@ export function Board({
     [miId, marcarCerradaEnRps],
   );
   const pedidoAPasar = pedidos.find((p) => p.id === pasarPendiente) ?? null;
-  const listaPase = useMemo(() => ofsDelPase(pedidoAPasar?.ofs ?? [], miId), [pedidoAPasar, miId]);
+  // Se abrió con «Dar por terminadas…»: lista para elegir.
+  const paseAMedias = !!pedidoAPasar && elegirOFs;
+  const listaPase = useMemo(() => ofsDelPaseParcial(pedidoAPasar?.ofs ?? [], miId), [pedidoAPasar, miId]);
   // Solo donde se pasa con «Pasar a Producción»: en Diseño e Impresión el
   // final es «Finalizar todo»/«Impreso», y allí no se cierran OF sueltas.
   const seccionDelPase: SeccionId = seccionDeLosPedidos ?? SECCION_POR_DEFECTO;
-  const conEleccionPase = !SECCIONES[seccionDelPase].finalizar && hayEleccion(listaPase);
-  const decisionPase = conEleccionPase ? decidirPase(listaPase, desmarcadasPase) : ({ tipo: "todo" } as const);
+  const conEleccionPase = !SECCIONES[seccionDelPase].finalizar && paseAMedias;
+  const decisionParcial = conEleccionPase && pedidoAPasar ? decidirPaseParcial(pedidoAPasar.ofs, miId, desmarcadasPase) : null;
+  const decisionPase = decisionParcial
+    ? (decisionParcial.tipo === "todas" ? ({ tipo: "nada" } as const) : decisionParcial)
+    : ({ tipo: "todo" } as const);
   const sinComprobar = vistaPlanteamiento?.pedidoId === pasarPendiente ? vistaPlanteamiento?.datos.ofsLonaSinComprobar : undefined;
   const idsPaseParcial = decisionPase.tipo === "parcial" ? new Set(decisionPase.ofIds) : null;
   const ofsLonaSinComprobar = decisionPase.tipo === "todo" ? sinComprobar : listaPase
@@ -3458,6 +3468,7 @@ export function Board({
         onClose={closeDrawer}
         onAssignPedido={asignarPedido}
         onCompletar={completarPedido}
+        onDarPorTerminadas={laSeccion.finalizar ? undefined : (id) => completarPedido(id, true)}
         // «Impreso» solo existe donde no revisa nadie. Va por `laSeccion` (la
         // de los pedidos en pantalla) y no por `seccionActual`, por lo dicho
         // allí: en el cambio de lista, un pedido de Diseño no puede ganar un
@@ -3500,12 +3511,16 @@ export function Board({
 
       <ConfirmDialog
         abierto={pedidoAPasar !== null}
-        titulo={`Pasar ${pedidoAPasar?.codigo ?? ""} a Producción`}
+        // Desde «Dar por terminadas…» (pedido a medias) se habla de terminar
+        // OF, no de pasar el pedido: el pedido se queda en el tablero.
+        titulo={paseAMedias ? `Dar por terminadas OF de ${pedidoAPasar?.codigo ?? ""}` : `Pasar ${pedidoAPasar?.codigo ?? ""} a Producción`}
         ancho
         textoConfirmar={
           decisionPase.tipo === "parcial"
-            ? `Pasar ${decisionPase.ofIds.length === 1 ? "la marcada" : `las ${decisionPase.ofIds.length} marcadas`}`
-            : "Pasar a Producción"
+            ? paseAMedias
+              ? `Dar por terminada${decisionPase.ofIds.length === 1 ? "" : `s las ${decisionPase.ofIds.length}`}`
+              : `Pasar ${decisionPase.ofIds.length === 1 ? "la marcada" : `las ${decisionPase.ofIds.length} marcadas`}`
+            : paseAMedias ? "Dar por terminadas" : "Pasar a Producción"
         }
         confirmarDesactivado={decisionPase.tipo === "nada"}
         mensaje={
@@ -3513,7 +3528,9 @@ export function Board({
             <p className="text-sm text-text">
               {decisionPase.tipo === "parcial"
                 ? `Se dan por terminadas en RPS ${decisionPase.ofIds.length === 1 ? "la OF marcada" : `las ${decisionPase.ofIds.length} OF marcadas`}. Las demás se quedan en tu tablero para pasarlas más tarde.`
-                : decisionPase.tipo === "nada"
+                : decisionParcial?.tipo === "todas"
+                  ? "Deja al menos una OF sin marcar. Para pasarlas todas, «Pasar a Producción»."
+                  : decisionPase.tipo === "nada"
                   ? "Marca al menos una OF para pasar."
                   : `Se dan por terminadas ${ofsAPasar === 1 ? "su OF" : `sus ${ofsAPasar} OF`} y el pedido pasa al Historial.`}
             </p>
@@ -3522,7 +3539,7 @@ export function Board({
             </p>
             {conEleccionPase && (
               <div className="mt-4">
-              <ApartadoPase titulo="Qué OF se pasan">
+              <ApartadoPase titulo={paseAMedias ? "Qué OF se dan por terminadas" : "Qué OF se pasan"}>
                 {(() => {
                   // Casillas en fila con «Marcar todas / Ninguna» (Iván,
                   // 27/11/2026). «Ninguna» desmarca todas las mías: el botón de
@@ -3569,6 +3586,10 @@ export function Board({
                           {of.descripcion && <span className="truncate text-text-muted">{of.descripcion}</span>}
                         </span>
                         {motivo === "detenida" && <span className="mt-0.5 block text-amber-800 dark:text-amber-300">Detenida: no se pasa</span>}
+                        {motivo === "en_revision" && <span className="mt-0.5 block">En revisión: pasa cuando la aprueben</span>}
+                        {elegible && of.estado !== "aprobada" && (
+                          <span className="mt-0.5 block text-amber-800 dark:text-amber-300">Sin revisar</span>
+                        )}
                         {motivo === "de_otro" && (
                           <span className="mt-0.5 block">
                             De {operarios.find((o) => o.id === of.autorId)?.nombre ?? of.autorId ?? "sin asignar"}: si no se pasa todo, la pasa quien la lleva

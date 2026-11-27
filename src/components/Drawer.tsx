@@ -42,6 +42,7 @@ import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, ofsFueraVisibles, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
+import { puedeDarPorTerminadas } from "@/lib/paso-parcial";
 import { accionOcultaSinRevision, ofsParaImpreso } from "@/lib/impreso";
 import { MaterialChip } from "./MaterialChip";
 import { CabeceraFicha, ComentarioPedido, MarcoFicha, TITULO_BLOQUE } from "./MarcoFicha";
@@ -260,6 +261,7 @@ export function Drawer({
   onClose,
   onAssignPedido,
   onCompletar,
+  onDarPorTerminadas,
   onImpreso,
   onAbrirPedidoPorCodigo,
   onPasarRevision,
@@ -290,6 +292,9 @@ export function Drawer({
   onClose: () => void;
   onAssignPedido: (autorId: string | null) => void;
   onCompletar: (pedidoId: string) => void;
+  /** «Dar por terminadas…» del "⋯" del pedido: el diálogo de pasar con la
+   *  lista de OF para desmarcar. Sin él (Diseño, Impresión) no sale. */
+  onDarPorTerminadas?: (pedidoId: string) => void;
   /** «Impreso»: aprueba lo que queda y pasa el pedido (ver lib/impreso.ts).
    *  Solo lo da el Board en las secciones sin revisión; sin él, el botón no
    *  existe y el bloque sigue como siempre. */
@@ -1180,6 +1185,16 @@ export function Drawer({
                 )}
                 <MenuMasBloque
                   opciones={[
+                    ...(onDarPorTerminadas && !soloLectura && puedeDarPorTerminadas(pedido, miId)
+                      ? [
+                          {
+                            id: "dar-por-terminadas",
+                            label: "Dar por terminadas…",
+                            title: "Eliges qué OF del pedido se dan por terminadas; las demás se quedan en el panel",
+                            onClick: () => onDarPorTerminadas(pedido.id),
+                          },
+                        ]
+                      : []),
                     ...(fichandoYo.length <= 1 && fichablesMias.length <= 1 && fichablesAjenas.length > 1
                       ? [
                           {
