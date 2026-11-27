@@ -23,7 +23,7 @@ export function CasillaFila({
         desactivada
           ? "cursor-not-allowed text-text-muted"
           : marcada
-            ? "cursor-pointer bg-surface text-text shadow-[var(--hero-sombra-campo)] ring-2 ring-brand-400"
+            ? "cursor-pointer bg-surface text-text shadow-[var(--hero-sombra-campo)] ring-[1.5px] ring-inset ring-brand-400"
             : "cursor-pointer text-text hover:bg-[var(--hero-relleno-encima)]"
       }`}
     >
