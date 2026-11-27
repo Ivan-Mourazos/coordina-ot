@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-27",
-    "hasta": "436c0f1",
+    "hasta": "7ca0ab8",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -36,6 +36,13 @@
         "apartado": "ot",
         "detalle": "La OF devuelta se abre sola con la lista arriba; cuando la reenvías se pliega en gris. Planteamientos sigue enseñando la nota mientras corriges.",
         "tanda": 5
+      },
+      {
+        "tipo": "mejor",
+        "titulo": "Ves quién te devolvió la OF y lo que vas corrigiendo se guarda",
+        "apartado": "ot",
+        "detalle": "Sale quién la devolvió, cuándo y si es la segunda vuelta. Lo que tachas se ve igual desde cualquier PC; es solo para ti, no hace falta tacharlo todo para reenviarla.",
+        "tanda": 6
       }
     ]
   },
