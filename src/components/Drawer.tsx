@@ -42,7 +42,6 @@ import { esFichable, motivoNoFichable, rolFichajeDe } from "@/lib/fichaje";
 import { leerAnulacion, textoAnulacion } from "@/lib/anulacion";
 import { puedeTraspasarAutor } from "@/lib/traspaso";
 import { ofDeTaller, ofsFueraVisibles, pedidoListoParaPasar, puedePasarAProduccion } from "@/lib/fases-tablero";
-import { hayCierreVarias } from "@/lib/paso-parcial";
 import { accionOcultaSinRevision, ofsParaImpreso } from "@/lib/impreso";
 import { MaterialChip } from "./MaterialChip";
 import { CabeceraFicha, ComentarioPedido, MarcoFicha, TITULO_BLOQUE } from "./MarcoFicha";
@@ -273,7 +272,6 @@ export function Drawer({
   onDesfichar,
   onDesficharVarias,
   onCerradoEnRps,
-  onCerrarVarias,
   onGemelaReintentada,
   ofIdsFichandoYo,
   miFichaje,
@@ -314,9 +312,6 @@ export function Drawer({
   /** «Dar por terminada en RPS» ya contestó bien en el servidor: el Board
    *  refleja la marca. No pasa por `onAccion` (ver CerrarEnRpsInline). */
   onCerradoEnRps: (ofId: string, cerradaRps: NonNullable<OF["cerradaRps"]>, avisos?: string[]) => void;
-  /** «Dar por terminadas en RPS…» del "⋯" del pedido: el Board abre el
-   *  diálogo para elegir qué OF (ver lib/paso-parcial.ts). */
-  onCerrarVarias?: (pedidoId: string) => void;
   /** «Reintentar la N» (Confirmado con Iván, punto 4) ya escribió bien la
    *  gemela: el Board refleja la marca sin `gemelaSinEscribir`. Igual que
    *  `onCerradoEnRps`, no pasa por `onAccion`. */
@@ -561,10 +556,6 @@ export function Drawer({
   // Producción», que además lo saca del panel. La máquina de estados no puede
   // mirarlo porque no conoce el pedido (ver `cerrar_en_rps` en acciones.ts); la
   // ruta lo vuelve a comprobar con el mismo cálculo.
-  // «Dar por terminadas en RPS…» (Iván, 27/11/2026): donde se pasa con
-  // «Pasar a Producción» (no en Diseño ni Impresión) y con al menos dos OF
-  // mías que se puedan cerrar y otra que se quede.
-  const conCerrarVarias = !!onCerrarVarias && !seccion.finalizar && hayCierreVarias(pedido.ofs, miId);
   const esLaUltimaQueQueda = (o: OF) =>
     pedidoListoParaPasar({
       ...pedido,
@@ -1196,16 +1187,6 @@ export function Drawer({
                             label: `Fichar para ayudar (${fichablesAjenas.length})`,
                             title: "Tu tiempo en sus OF; siguen siendo de quien las lleva",
                             onClick: () => onFichar(fichablesAjenas.map((o) => o.id), "plantear"),
-                          },
-                        ]
-                      : []),
-                    ...(conCerrarVarias
-                      ? [
-                          {
-                            id: "terminar-varias",
-                            label: "Dar por terminadas en RPS…",
-                            title: "Eliges qué OF del pedido se dan por terminadas; las demás se quedan en el panel",
-                            onClick: () => onCerrarVarias?.(pedido.id),
                           },
                         ]
                       : []),

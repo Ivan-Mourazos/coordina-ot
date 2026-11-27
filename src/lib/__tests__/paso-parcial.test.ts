@@ -1,5 +1,5 @@
-import { describe, expect, test } from "vitest";
-import { decidirCierreVarias, decidirPase, hayCierreVarias, hayEleccion, ofsDelPase, ofsParaCerrarVarias } from "../paso-parcial";
+import { expect, test } from "vitest";
+import { decidirPase, hayEleccion, ofsDelPase } from "../paso-parcial";
 import type { OF } from "../types";
 
 const of = (id: string, extra: Partial<OF> = {}): OF => ({
@@ -40,44 +40,4 @@ test("desmarcar una mía = se pasan solo las marcadas", () => {
 
 test("desmarcadas todas las mías = nada que hacer", () => {
   expect(decidirPase(ofsDelPase(OFS, "ivan"), new Set(["1:9", "2:9", "3:9"]))).toEqual({ tipo: "nada" });
-});
-
-// «Dar por terminadas varias…» desde el "⋯" de una OF (27/11/2026).
-describe("cerrar varias OF de un pedido", () => {
-  const PED = [
-    of("1:9", { estado: "en_curso" }),
-    of("2:9", { estado: "pendiente" }),
-    of("3:9", { estado: "aprobada" }),
-    of("4:9", { estado: "por_revisar" }),
-    of("5:9", { estado: "en_curso", detenida: true }),
-    of("6:9", { estado: "en_curso", autorId: "tamara" }),
-    of("7:9", { estado: "anulada" }),
-    of("8:9", { estado: "aprobada", cerradaRps: { at: "x", por: "ivan", modo: "activo" } }),
-  ];
-
-  test("se pueden marcar las mías que admiten cerrarse; las mandadas a revisar no", () => {
-    const lista = ofsParaCerrarVarias(PED, "ivan");
-    expect(lista.filter((x) => x.elegible).map((x) => x.of.id)).toEqual(["1:9", "2:9", "3:9"]);
-    expect(lista.find((x) => x.of.id === "4:9")?.motivo).toBe("en_revision");
-    expect(lista.find((x) => x.of.id === "5:9")?.motivo).toBe("detenida");
-    expect(lista.find((x) => x.of.id === "6:9")?.motivo).toBe("de_otro");
-    expect(lista.some((x) => x.of.id === "7:9" || x.of.id === "8:9")).toBe(false);
-  });
-
-  test("se ofrece con dos mías y otra que se quede", () => {
-    expect(hayCierreVarias(PED, "ivan")).toBe(true);
-    expect(hayCierreVarias([of("1:9", { estado: "en_curso" }), of("2:9", { estado: "en_curso" })], "ivan")).toBe(false);
-    expect(hayCierreVarias([of("1:9", { estado: "en_curso" }), of("4:9", { estado: "por_revisar" }), of("6:9", { autorId: "tamara" })], "ivan")).toBe(false);
-  });
-
-  test("cierra solo las marcadas que se pueden", () => {
-    expect(decidirCierreVarias(PED, "ivan", new Set(["1:9", "3:9", "4:9"]))).toEqual({ tipo: "cerrar", ofIds: ["1:9", "3:9"] });
-    expect(decidirCierreVarias(PED, "ivan", new Set())).toEqual({ tipo: "nada" });
-  });
-
-  test("tiene que quedar otra sin cerrar: si no, es pasar el pedido", () => {
-    const tres = [of("1:9", { estado: "en_curso" }), of("2:9", { estado: "en_curso" }), of("3:9", { estado: "en_curso" })];
-    expect(decidirCierreVarias(tres, "ivan", new Set(["1:9", "2:9", "3:9"]))).toEqual({ tipo: "todas" });
-    expect(decidirCierreVarias(tres, "ivan", new Set(["1:9", "2:9"]))).toEqual({ tipo: "cerrar", ofIds: ["1:9", "2:9"] });
-  });
 });
