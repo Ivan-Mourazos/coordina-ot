@@ -1,7 +1,7 @@
 [
   {
     "id": "2026-11-27",
-    "hasta": "b709dec",
+    "hasta": "eb656e4",
     "cambios": [
       {
         "tipo": "nuevo",
@@ -16,6 +16,12 @@
         "apartado": "ot",
         "detalle": "Salen marcadas las tuyas pendientes; desmarcas las que no y fichas todas juntas.",
         "tanda": 2
+      },
+      {
+        "tipo": "arreglado",
+        "titulo": "En Revisiones ya no sale como «revisando ahora» quien no está fichando",
+        "apartado": "ot",
+        "tanda": 3
       }
     ]
   },
