@@ -98,14 +98,15 @@ export function MiFichaje({
     const fuera = pedidosCorriendo.filter((p) => p.id !== franja.pedidoId);
     const irA = !aqui && fuera.length === 1 ? fuera[0] : null;
     // La frase que se ve; la de horas y OF, en el `title`.
-    const largo = aqui
+    // El verbo va aparte: solo él lleva el color del rol.
+    const resto = aqui
       ? // Si además corren OF de otro pedido, que no se pierda.
-        `${ROL[ab.rol].label} este pedido${fuera.length ? ` y ${fuera.length === 1 ? fuera[0].codigo : `${fuera.length} más`}` : ""}`
+        `este pedido${fuera.length ? ` y ${fuera.length === 1 ? fuera[0].codigo : `${fuera.length} más`}` : ""}`
       : fuera.length === 1
-        ? `${ROL[ab.rol].label} otro pedido: ${fuera[0].codigo}`
+        ? `otro pedido: ${fuera[0].codigo}`
         : fuera.length > 1
-          ? `${ROL[ab.rol].label} otros ${fuera.length} pedidos`
-          : `${ROL[ab.rol].label} otro pedido`;
+          ? `otros ${fuera.length} pedidos`
+          : "otro pedido";
     return (
       <div
         role="status"
@@ -119,12 +120,21 @@ export function MiFichaje({
         // hero.css), en píldora de HeroUI: radio entero, sin borde y la sombra
         // de los paneles. Si el reloj es de OTRO pedido, la onda va en ámbar
         // (`franja-fichaje-otro`): es un aviso, no lo que tienes delante.
-        className={`fila-fichando-${ab.rol} ${aqui ? ROL[ab.rol].texto : "franja-fichaje-otro text-amber-800 dark:text-amber-200"} flex items-center gap-2 rounded-full py-1 pl-3.5 pr-1 text-xs font-bold shadow-[var(--hero-sombra-panel)]`}
+        //
+        // Legibilidad (Iván, 27/11/2026): todo en violeta claro, negrita y
+        // 12 px sobre la onda violeta no se leía. Ahora el texto va en el color
+        // normal, a 14 px, y el rol solo pinta el punto, el verbo y el botón.
+        className={`fila-fichando-${ab.rol} franja-fichaje ${aqui ? "" : "franja-fichaje-otro"} flex items-center gap-2.5 rounded-full py-1.5 pl-4 pr-1.5 text-sm text-text`}
       >
         <LiveDot rol={ab.rol} className="size-2 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">{largo}</span>
+        <span className="min-w-0 flex-1 truncate">
+          <span className={`font-semibold ${aqui ? ROL[ab.rol].texto : "text-amber-800 dark:text-amber-300"}`}>
+            {ROL[ab.rol].label}
+          </span>{" "}
+          {resto}
+        </span>
         <span className="sr-only">{titulo}</span>
-        <span className="shrink-0 tabular-nums">{fmtHMS(acumuladoSeg)}</span>
+        <span className="shrink-0 font-semibold tabular-nums">{fmtHMS(acumuladoSeg)}</span>
         {irA && (
           <button
             type="button"
@@ -140,9 +150,9 @@ export function MiFichaje({
           onClick={onPausarTodo}
           aria-label="Pausar el fichaje"
           title="Para el reloj. Las OF se quedan como están: no se cierra nada."
-          className={`grid size-6 shrink-0 place-items-center rounded-full active:scale-[.97] motion-reduce:active:scale-100 text-[10px] ${ROL[ab.rol].solido}`}
+          className={`grid size-7 shrink-0 place-items-center rounded-full active:scale-[.97] motion-reduce:active:scale-100 text-[10px] ${ROL[ab.rol].solido}`}
         >
-          <IconoPausa className="size-3" />
+          <IconoPausa className="size-3.5" />
         </button>
       </div>
     );

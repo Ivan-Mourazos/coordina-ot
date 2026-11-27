@@ -232,6 +232,20 @@ html[data-estilo="hero"].dark:root .fila-fichando-revisar.fila-fichando-revisar 
   --onda-fichando: rgba(167, 139, 250, 0.3);
   --luz-fichando: rgb(167, 139, 250);
 }
+/* La franja de mi reloj al pie de la ficha (MiFichaje). Con `--fila` =
+   `--surface` su fondo era el MISMO que el del panel y la píldora entera se
+   camuflaba (Iván, 27/11/2026): lleva un fondo propio, teñido del color del
+   rol (o del ámbar si es otro pedido), y un filo fino del mismo tono.
+   Especificidad de tres clases para ganar a la regla de `--onda-fichando`. */
+html[data-estilo="hero"]:root .franja-fichaje.franja-fichaje.franja-fichaje {
+  --fila: color-mix(in srgb, var(--luz-fichando) 16%, var(--surface));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--luz-fichando) 45%, transparent),
+    var(--hero-sombra-panel);
+}
+html[data-estilo="hero"].dark:root .franja-fichaje.franja-fichaje.franja-fichaje {
+  --fila: color-mix(in srgb, var(--luz-fichando) 20%, var(--surface));
+}
 /* La franja de mi reloj en la ficha de un pedido, cuando lo que corre es OTRO
    pedido (MiFichaje, 18/11/2026): misma onda, en ámbar de aviso. */
 html[data-estilo="hero"]:root .fila-fichando-plantear.franja-fichaje-otro,
