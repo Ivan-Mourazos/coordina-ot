@@ -44,7 +44,9 @@ export function DetalleVenta({
         </svg>
         {abierto ? "Ocultar descripción" : "Descripción"}
       </button>
-      <div id={id} className={enFila ? (abierto ? "basis-full" : "hidden") : undefined}>
+      {/* `order-last`: abierto, el texto baja DEBAJO de toda la fila aunque el
+          botón vaya el primero (la ficha de una OF, 27/11/2026). */}
+      <div id={id} className={enFila ? (abierto ? "order-last basis-full" : "hidden") : undefined}>
         <Desplegable abierto={abierto}>
           <p className="mt-1 whitespace-pre-line recuadro rounded-lg px-2 py-1.5 text-[11px] leading-5 text-text">
             {texto}

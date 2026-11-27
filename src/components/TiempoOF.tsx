@@ -1,8 +1,9 @@
 "use client";
 
-import type { FichandoAhora, OF, Operario } from "@/lib/types";
-import { fmtMin, fmtMinEnteros, ROL } from "@/lib/estado";
+import type { FichandoAhora, OF, Operario, Rol } from "@/lib/types";
+import { fmtMin, fmtMinEnteros } from "@/lib/estado";
 import { LiveDot } from "./LiveBadge";
+import { Pista } from "./Pista";
 import { RelojVivo } from "./RelojVivo";
 import { OpDot } from "./Select";
 
@@ -18,9 +19,19 @@ const enMinutos = fmtMinEnteros;
 // planteo y cuánto la revisión de lo que se está haciendo ahora; lo de RPS ya
 // sale en el Historial y en «Tareas y tiempos».
 //
-// Una fila por persona y una columna por rol. Quien está fichando lleva su
-// reloj, al segundo, en la columna de lo que está haciendo: al lado de sus
-// minutos salían «● 0:00:07  0m», dos cuentas que parecían distintas.
+// EN LA CABECERA DE LA OF, Y EL DETALLE AL PASAR EL RATÓN (Iván, 27/11/2026,
+// elegido entre maquetas de un comité). La caja «Tiempo en la web» ocupaba
+// 55-80 px de cada tarjeta —con «Todavía no se ha fichado nada» cuando estaba
+// vacía— y repetía el nombre que ya sale en Autor. Ahora la cabecera lleva el
+// total en el color de cada fase (verde el planteo, morado la revisión) contra
+// el estimado, y la tabla por persona sale en la pista.
+
+// Colores fijos para dentro del globo: la pista es oscura en los dos temas, y
+// los de `ROL[…].texto` en claro (esmeralda 800, violeta 700) no se leían.
+const EN_GLOBO: Record<Rol, string> = {
+  plantear: "text-emerald-300",
+  revisar: "text-violet-300",
+};
 
 interface Fila {
   operarioId: string;
@@ -56,31 +67,81 @@ function filas(of: OF, opById: (id: string | null) => Operario | null): Fila[] {
 function Celda({ min, vivo }: { min: number; vivo: FichandoAhora | undefined }) {
   if (vivo)
     return (
-      <span
-        className={`flex w-[4.75rem] shrink-0 items-center justify-end gap-1 font-semibold ${ROL[vivo.rol].texto}`}
-        title={`${vivo.rol === "revisar" ? "Revisando" : "Planteando"} ahora${
-          (vivo.parte ?? 1) < 1
-            ? ` ${Math.round(1 / (vivo.parte ?? 1))} OF a la vez: a esta le toca su parte, y su reloj va más despacio`
-            : ""
-        }`}
-      >
+      <span className={`flex w-16 shrink-0 items-center justify-end gap-1 font-semibold ${EN_GLOBO[vivo.rol]}`}>
         {/* Con varias OF en el mismo reloj, esta OF suma solo su parte: sin
             decirlo, su contador avanzando un segundo de cada tres parecía
             atascado. */}
-        {(vivo.parte ?? 1) < 1 && (
-          <span className="font-normal text-text-muted">÷{Math.round(1 / (vivo.parte ?? 1))}</span>
-        )}
+        {(vivo.parte ?? 1) < 1 && <span className="font-normal opacity-60">÷{Math.round(1 / (vivo.parte ?? 1))}</span>}
         <LiveDot rol={vivo.rol} className="size-1.5" />
         <RelojVivo desde={vivo.desde} previoSeg={vivo.previoSeg} parte={vivo.parte} />
       </span>
     );
   return (
-    <span className={`w-[4.75rem] shrink-0 text-right tabular-nums ${min > 0 ? "text-text" : "text-text-muted"}`}>
+    <span className={`w-16 shrink-0 text-right tabular-nums ${min > 0 ? "" : "opacity-50"}`}>
       {min > 0 ? enMinutos(min) : "—"}
     </span>
   );
 }
 
+/** Una persona por fila y una columna por rol, para el globo. */
+function Tabla({
+  gente,
+  conRevision,
+  planteo,
+  revision,
+  estimadoMin,
+}: {
+  gente: Fila[];
+  conRevision: boolean;
+  planteo: number;
+  revision: number;
+  estimadoMin: number;
+}) {
+  return (
+    <div className="mt-1 w-72 text-[11px]">
+      {gente.length === 0 ? (
+        <p className="opacity-70">Todavía no se ha fichado nada en la web.</p>
+      ) : (
+        <>
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide">
+            <span className="flex-1" />
+            <span className={`w-16 text-right ${EN_GLOBO.plantear}`}>Plantear</span>
+            {conRevision && <span className={`w-16 text-right ${EN_GLOBO.revisar}`}>Revisión</span>}
+          </div>
+          <ul className="mt-0.5 space-y-0.5">
+            {gente.map((f) => (
+              <li key={f.operarioId} className="flex items-center gap-2">
+                {f.op ? (
+                  <OpDot color={f.op.color} iniciales={f.op.iniciales} />
+                ) : (
+                  <span className="size-4.5 shrink-0 rounded-full ring-1 ring-inset ring-white/30" />
+                )}
+                <span className="min-w-0 flex-1 truncate">{f.op?.nombre ?? "Nombre no disponible"}</span>
+                <Celda min={f.planteoMin} vivo={f.vivo?.rol === "plantear" ? f.vivo : undefined} />
+                {conRevision && <Celda min={f.revisionMin} vivo={f.vivo?.rol === "revisar" ? f.vivo : undefined} />}
+              </li>
+            ))}
+          </ul>
+          {/* La suma de cada columna, solo con más de una persona: con una,
+              es su misma fila. */}
+          {gente.length > 1 && (
+            <div className="mt-1 flex items-center gap-2 border-t border-white/15 pt-1 font-semibold">
+              <span className="flex-1 opacity-70">Total</span>
+              <span className="w-16 text-right tabular-nums">{planteo > 0 ? enMinutos(planteo) : "—"}</span>
+              {conRevision && (
+                <span className="w-16 text-right tabular-nums">{revision > 0 ? enMinutos(revision) : "—"}</span>
+              )}
+            </div>
+          )}
+        </>
+      )}
+      {estimadoMin > 0 && <p className="mt-1 opacity-70">Estimado: {fmtMin(estimadoMin)}</p>}
+    </div>
+  );
+}
+
+/** El tiempo de la OF en su cabecera: planteo en verde, revisión en morado,
+ *  contra el estimado. Al pasar el ratón, quién y cuánto en cada fase. */
 export function TiempoOF({
   of,
   opById,
@@ -98,66 +159,71 @@ export function TiempoOF({
   const total = planteo + revision;
   const pasado = of.tiempoEstimadoMin > 0 && total > of.tiempoEstimadoMin;
   const conRevision = !sinRevision || revision > 0;
+  const vivoPlanteo = gente.some((f) => f.vivo?.rol === "plantear");
+  const vivoRevision = gente.some((f) => f.vivo?.rol === "revisar");
+  const verPlanteo = planteo > 0 || vivoPlanteo;
+  const verRevision = revision > 0 || vivoRevision;
+
+  const leido = [
+    `Tiempo en la web: ${enMinutos(planteo)} de planteo`,
+    conRevision ? `, ${enMinutos(revision)} de revisión` : "",
+    of.tiempoEstimadoMin > 0 ? `; estimado ${fmtMin(of.tiempoEstimadoMin)}` : "",
+    pasado ? " (pasado del estimado)" : "",
+  ].join("");
 
   return (
-    // `detalle-hundido` y no `recuadro`: dentro de la tarjeta de la OF, el
-    // hundido de siempre (casi negro en oscuro) era un agujero y lo que más
-    // llamaba de la ficha, siendo un dato de consulta. Este es un escalón
-    // menos, el del interior de las filas desplegadas (Iván, 16/10/2026).
-    <div className="detalle-hundido mt-2 rounded-lg px-2 py-1.5">
-      <div className="flex items-baseline gap-2">
-        <p
-          className="text-[10px] font-semibold uppercase tracking-wide text-text-muted"
-          title="Lo fichado en Coordina. Lo del terminal de RPS está en el Historial y en «Tareas y tiempos»."
-        >
-          Tiempo en la web
-        </p>
-        <p className="ml-auto text-[11px]">
-          <b className={`font-semibold ${pasado ? "text-amber-700 dark:text-amber-300" : "text-text"}`}>
-            {enMinutos(total)}
-          </b>
-          {of.tiempoEstimadoMin > 0 && (
-            <span className="text-text-muted"> / est. {fmtMin(of.tiempoEstimadoMin)}</span>
-          )}
-        </p>
-      </div>
-
-      {gente.length === 0 ? (
-        // Fuera en pantalla baja: el "0m / est." de arriba ya lo dice, y esta
-        // línea era lo que dejaba el botón de fichar por debajo del borde.
-        <p className="mt-1 text-[11px] text-text-muted bajo:hidden">Todavía no se ha fichado nada en la web.</p>
-      ) : (
-        <>
-          <div className="mt-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-            <span className="flex-1" />
-            <span className={`w-[4.75rem] text-right ${ROL.plantear.texto}`}>Plantear</span>
-            {conRevision && <span className={`w-[4.75rem] text-right ${ROL.revisar.texto}`}>Revisión</span>}
-          </div>
-          <ul className="mt-0.5 space-y-0.5">
-            {gente.map((f) => (
-              <li key={f.operarioId} className="flex items-center gap-2 text-[11px]">
-                {f.op ? (
-                  <OpDot color={f.op.color} iniciales={f.op.iniciales} />
-                ) : (
-                  <span className="size-4.5 shrink-0 rounded-full ring-1 ring-inset ring-border" />
-                )}
-                <span className="min-w-0 flex-1 truncate text-text">{f.op?.nombre ?? "Nombre no disponible"}</span>
-                <Celda min={f.planteoMin} vivo={f.vivo?.rol === "plantear" ? f.vivo : undefined} />
-                {conRevision && <Celda min={f.revisionMin} vivo={f.vivo?.rol === "revisar" ? f.vivo : undefined} />}
-              </li>
-            ))}
-          </ul>
-          {/* La suma de cada columna, solo con más de una persona: con una,
-              es su misma fila. */}
-          {gente.length > 1 && (
-            <div className="mt-1 flex items-center gap-2 border-t border-border pt-1 text-[11px] font-semibold text-text">
-              <span className="flex-1 text-text-muted">Total</span>
-              <span className="w-[4.75rem] text-right tabular-nums">{planteo > 0 ? enMinutos(planteo) : "—"}</span>
-              {conRevision && <span className="w-[4.75rem] text-right tabular-nums">{revision > 0 ? enMinutos(revision) : "—"}</span>}
-            </div>
-          )}
-        </>
-      )}
-    </div>
+    <Pista
+      lado="abajo"
+      texto="Tiempo en la web"
+      contenido={
+        <Tabla
+          gente={gente}
+          conRevision={conRevision}
+          planteo={planteo}
+          revision={revision}
+          estimadoMin={of.tiempoEstimadoMin}
+        />
+      }
+    >
+      {/* Sin foco propio: con la OF plegable, la cabecera entera es el botón
+          que la abre, y dentro de un botón no puede ir otro elemento con foco.
+          Lo que dice va en `aria-label`. */}
+      <span
+        role="img"
+        aria-label={leido}
+        className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-surface-2 px-2 py-0.5 text-[11px] tabular-nums"
+      >
+        {!verPlanteo && !verRevision ? (
+          <>
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="size-3 text-text-muted" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="font-semibold text-text-muted">0m</span>
+          </>
+        ) : (
+          <>
+            {verPlanteo && (
+              <span className="inline-flex items-center gap-1 font-semibold text-emerald-800 dark:text-emerald-300">
+                {vivoPlanteo && <LiveDot rol="plantear" className="size-1.5" />}
+                {enMinutos(planteo)}
+              </span>
+            )}
+            {verPlanteo && verRevision && <span className="text-text-muted">+</span>}
+            {verRevision && (
+              <span className="inline-flex items-center gap-1 font-semibold text-violet-700 dark:text-violet-300">
+                {vivoRevision && <LiveDot rol="revisar" className="size-1.5" />}
+                {enMinutos(revision)}
+              </span>
+            )}
+          </>
+        )}
+        {of.tiempoEstimadoMin > 0 && (
+          <span className={pasado ? "text-amber-700 dark:text-amber-300" : "text-text-muted"}>
+            / {fmtMin(of.tiempoEstimadoMin)}
+          </span>
+        )}
+      </span>
+    </Pista>
   );
 }

@@ -175,9 +175,13 @@ export function MaterialChip({
   materiales,
   compras = [],
   hoy,
+  enFila = false,
 }: {
   materiales?: readonly MaterialAsignado[];
   compras?: readonly CompraOF[];
+  /** En la línea de datos de la OF, junto a otros: «Sin material», corto y
+   *  sin la sangría de las líneas sueltas. */
+  enFila?: boolean;
   /** Hoy en ISO, para saber si una entrega llega tarde. Se pasa de fuera para
    *  no leer el reloj en el render (y para poder probarlo). */
   hoy: string;
@@ -188,8 +192,11 @@ export function MaterialChip({
   if (lista.length === 0 && compras.length === 0) {
     return (
       // px-2.5: el icono en la misma columna que el resto de líneas de la OF.
-      <span className="inline-flex items-center gap-1.5 px-2.5 text-[11px] text-text-muted">
-        <IconoMaterial /> Sin material asignado
+      <span
+        className={`inline-flex items-center gap-1.5 text-[11px] text-text-muted ${enFila ? "" : "px-2.5"}`}
+        title={enFila ? "Sin material asignado en RPS" : undefined}
+      >
+        <IconoMaterial /> {enFila ? "Sin material" : "Sin material asignado"}
       </span>
     );
   }

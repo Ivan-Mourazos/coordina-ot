@@ -1,6 +1,16 @@
 "use client";
 
-import { cloneElement, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactElement } from "react";
+import {
+  cloneElement,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type HTMLAttributes,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 
 // ─── La pista de un botón ────────────────────────────────────────────────────
@@ -48,6 +58,7 @@ type Lado = "derecha" | "abajo";
 export function Pista({
   texto,
   detalle,
+  contenido,
   lado = "derecha",
   children,
 }: {
@@ -55,6 +66,10 @@ export function Pista({
   texto: string;
   /** Una línea debajo: qué pasa al pulsarlo, o que se recuerda. */
   detalle?: string;
+  /** Algo más que una línea (una tabla pequeña) debajo del nombre. Es solo
+   *  visual: lo que diga para el lector de pantalla va en `detalle` o en el
+   *  `aria-label` del propio elemento. */
+  contenido?: ReactNode;
   /** Hacia dónde sale: a la derecha en un carril vertical, debajo en una barra. */
   lado?: Lado;
   children: ReactElement<HTMLAttributes<HTMLElement>>;
@@ -107,7 +122,10 @@ export function Pista({
       {cloneElement(children, { "aria-description": detalle })}
       {ancla &&
         typeof document !== "undefined" &&
-        createPortal(<Globo ancla={ancla} lado={lado} texto={texto} detalle={detalle} onCerrado={cerrar} />, document.body)}
+        createPortal(
+          <Globo ancla={ancla} lado={lado} texto={texto} detalle={detalle} contenido={contenido} onCerrado={cerrar} />,
+          document.body,
+        )}
     </span>
   );
 }
@@ -117,12 +135,14 @@ function Globo({
   lado,
   texto,
   detalle,
+  contenido,
   onCerrado,
 }: {
   ancla: DOMRect;
   lado: Lado;
   texto?: string;
   detalle?: string;
+  contenido?: ReactNode;
   /** Lo cerró el navegador (Escape): hay que olvidarlo también aquí. */
   onCerrado: () => void;
 }) {
@@ -213,7 +233,7 @@ function Globo({
       ref={caja}
       popover="hint"
       aria-hidden="true"
-      className={`pista pista-${lado} pointer-events-none inset-auto m-0 max-w-72 overflow-visible rounded-lg px-2.5 py-1.5`}
+      className={`pista pista-${lado} pointer-events-none inset-auto m-0 ${contenido ? "max-w-96" : "max-w-72"} overflow-visible rounded-lg px-2.5 py-1.5`}
       style={{ left: 0, top: 0, visibility: "hidden" }}
     >
       {texto && <p className="text-xs font-semibold leading-tight">{texto}</p>}
@@ -224,6 +244,7 @@ function Globo({
           {detalle}
         </p>
       )}
+      {contenido}
     </div>
   );
 }

@@ -15,7 +15,7 @@ import { ParteEscaneado } from "./ParteEscaneado";
 import { DetalleVenta } from "./DetalleVenta";
 import { DevolverInline } from "./DevolverInline";
 import { GuiaRevision } from "./GuiaRevision";
-import { fallosDeLaGuia, guiaDeFamilias, sinMirar, type FalloGuia } from "@/lib/guia-revision";
+import { bloqueosDeLaGuia, fallosDeLaGuia, guiaDeFamilias, type FalloGuia } from "@/lib/guia-revision";
 import { leerDevolucion } from "@/lib/devolucion";
 import { useMarcasRevision } from "@/lib/marcas-cliente";
 import { leerCausas, leerPasos, type CausaDevolucion, type PasoRevision } from "@/lib/causas-cliente";
@@ -366,9 +366,9 @@ export function Drawer({
     if (pedidoAImprimir.current) onImpreso?.(pedidoAImprimir.current);
   });
   const [ultimoPedido, setUltimoPedido] = useState<string | null>(null);
-  // Qué OF se han abierto a mano cuando el pedido tiene tantas que van
-  // plegadas (ver `PLEGAR_DESDE`).
-  const [ofsAbiertas, setOfsAbiertas] = useState<ReadonlySet<string>>(new Set());
+  // Qué OF se han abierto o plegado a mano, al revés de como salen de entrada
+  // (ver `PLEGAR_DESDE`).
+  const [ofsCambiadas, setOfsCambiadas] = useState<ReadonlySet<string>>(new Set());
 
   // La guía de revisión, la misma que en el panel de Revisiones. Pasos y causas
   // se piden una vez por ficha: de los pasos sale lo que hay que repasar y de
@@ -439,7 +439,7 @@ export function Drawer({
   if (pedido && pedido.id !== ultimoPedido) {
     setUltimoPedido(pedido.id);
     if (mostrar.size > 0) setMostrar(new Set());
-    if (ofsAbiertas.size > 0) setOfsAbiertas(new Set());
+    if (ofsCambiadas.size > 0) setOfsCambiadas(new Set());
     if (pidiendoRevisorPedido) setPidiendoRevisorPedido(null);
   }
 
@@ -469,11 +469,18 @@ export function Drawer({
   // tarjeta abierta mide unos 290 px: con cinco, las notas, los documentos y
   // hasta la segunda OF quedaban muy por debajo del pliegue. La que alguien
   // está fichando sigue abierta, que es la que se está trabajando.
-  const plegables = ofsVisibles.length >= PLEGAR_DESDE;
-  const ofAbierta = (of: OF) => !plegables || ofsAbiertas.has(of.id) || !!of.fichandoRol;
+  //
+  // Con DOS ya se pueden plegar a mano, pero salen abiertas: abiertas caben
+  // (Iván, 27/11/2026, al compactar la tarjeta).
+  const plegables = ofsVisibles.length >= 2;
+  const plegadasDeEntrada = ofsVisibles.length >= PLEGAR_DESDE;
+  const ofAbierta = (of: OF) =>
+    !plegables || !!of.fichandoRol || ofsCambiadas.has(of.id) === plegadasDeEntrada;
   const todasAbiertas = ofsVisibles.every(ofAbierta);
+  const ponerTodas = (abiertas: boolean) =>
+    setOfsCambiadas(abiertas === plegadasDeEntrada ? new Set(ofsVisibles.map((o) => o.id)) : new Set());
   const alternarOF = (id: string) =>
-    setOfsAbiertas((prev) => {
+    setOfsCambiadas((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -709,15 +716,13 @@ export function Drawer({
       .filter((o) => idsParaRevisar.includes(o.id))
       .flatMap((o) => leerDevolucion(o.observacion).pasos ?? []),
   );
-  // NO SE APRUEBA NI SE DEVUELVE CON PUNTOS SIN MIRAR: la guía deja de ser un
-  // recordatorio y pasa a ser el paso previo. Con la guía vacía —una familia
-  // para la que nadie ha dictado puntos todavía— no se bloquea nada: no habría
-  // forma de desbloquearlo.
-  const faltanPuntos = sinMirar(puntosGuia, marcasGuia);
-  const impedidoPorGuia =
-    faltanPuntos > 0
-      ? `Faltan ${faltanPuntos} ${faltanPuntos === 1 ? "punto" : "puntos"} por mirar`
-      : null;
+  // Se marca solo lo que falla (Iván, 27/11/2026): no se aprueba con una ✗
+  // puesta, ni se devuelve una ✗ sin decir qué falla. Ver `bloqueosDeLaGuia`.
+  const { aprobar: impedidoPorGuia, devolver: impedidoDevolver } = bloqueosDeLaGuia(
+    puntosGuia,
+    marcasGuia,
+    comentariosGuia,
+  );
 
   // En solo lectura no: abre la herramienta donde se TRABAJA el planteo, y
   // Dirección no plantea (aunque no escriba en CoordinaOT, es un botón de
@@ -1073,7 +1078,7 @@ export function Drawer({
             {plegables && (
               <button
                 type="button"
-                onClick={() => setOfsAbiertas(todasAbiertas ? new Set() : new Set(ofsVisibles.map((o) => o.id)))}
+                onClick={() => ponerTodas(!todasAbiertas)}
                 className="text-[11px] font-semibold text-brand-800 hover:underline dark:text-brand-300"
               >
                 {todasAbiertas ? "Plegar todas" : "Abrir todas"}
@@ -1363,6 +1368,8 @@ export function Drawer({
                 }
                 fallos={fallosGuia}
                 familias={familiasDelPedido}
+                // Faltaba: el de cada fila sí lo llevaba y este no.
+                impedido={impedidoDevolver}
                 claseBoton={`${BOTON_BLOQUE} ${BOTON_NEUTRO}`}
                 // Aquí también se pueden descartar las que están bien, aunque
                 // cada fila siga teniendo su propio botón: quien abre este ya
@@ -1413,6 +1420,7 @@ export function Drawer({
                 onAccion={onAccion}
                 onFichar={onFichar}
                 impedidoRevision={impedidoPorGuia}
+                impedidoDevolver={impedidoDevolver}
                 fallosGuia={fallosGuia}
                 onDesfichar={onDesfichar}
                 fichandoYoEsta={ofIdsFichandoYo?.has(of.id) ?? false}
@@ -1524,8 +1532,12 @@ function LineaRol({
   op,
   live,
   control,
+  nombreRol,
 }: {
   rol: Rol;
+  /** El rótulo sin abreviar, para la pista, si `rotulo` va corto («Rev.»). Con
+   *  él, sin persona se pinta «—» en vez de «Sin asignar». */
+  nombreRol?: string;
   /** Cómo se llama quien tiene el rol: "Autor" / "Revisor". Son las palabras
    *  con las que se habla del trabajo en el resto del panel (traspasar autor,
    *  elegir revisor), no invento nuevo. */
@@ -1540,7 +1552,7 @@ function LineaRol({
   return (
     <div
       className="flex min-w-0 items-center gap-1.5"
-      title={`${rotulo}: ${op ? op.nombre : "sin asignar"}. Es de quién es el encargo; el tiempo que ha echado cada uno está justo debajo.`}
+      title={`${nombreRol ?? rotulo}: ${op ? op.nombre : "sin asignar"}. Es de quién es el encargo; el tiempo que ha echado cada uno, en el reloj de la cabecera.`}
     >
       {/* El rótulo, en texto discreto del color del rol y no en un bloque en
           mayúsculas: ocupaba más que el propio nombre (Iván, 27/11/2026). */}
@@ -1557,7 +1569,7 @@ function LineaRol({
             <span className="truncate text-[11px] text-text">{op.nombre}</span>
           </span>
         ) : (
-          <span className="text-[11px] italic text-text-muted">Sin asignar</span>
+          <span className="text-[11px] italic text-text-muted">{nombreRol ? "—" : "Sin asignar"}</span>
         )
       )}
       {/* El punto pulsante no repite el rol (el badge de la cabecera de la OF
@@ -1583,8 +1595,9 @@ function subfamiliaLegible(sub: string | null): string | null {
     .join(" ");
 }
 
-/** Desde cuántas OF se pliegan las tarjetas de la ficha. Con dos, abiertas
- *  caben en pantalla; con tres ya empujan las notas y los documentos fuera. */
+/** Desde cuántas OF salen plegadas las tarjetas de la ficha. Con dos, abiertas
+ *  caben en pantalla (y se pueden plegar a mano); con tres ya empujan las
+ *  notas y los documentos fuera. */
 const PLEGAR_DESDE = 3;
 
 /** «⋯» de la barra: lo poco frecuente. Solo sale si tiene algo dentro. */
@@ -1658,6 +1671,7 @@ function OFRow({
   fichandoYoEsta,
   otrasEnMiReloj,
   impedidoRevision,
+  impedidoDevolver,
   fallosGuia,
   plegable = false,
   abierta = true,
@@ -1682,6 +1696,8 @@ function OFRow({
   /** Por qué no se puede aprobar ni devolver esta OF todavía (quedan puntos de
    *  la guía sin mirar), o null si se puede. */
   impedidoRevision?: string | null;
+  /** Por qué no se puede devolver todavía: alguna ✗ sin decir qué falla. */
+  impedidoDevolver?: string | null;
   fallosGuia?: readonly FalloGuia[];
   /** El pedido tiene una sola OF: el selector de autor de arriba ya la cubre. */
   pedidoDeUnaOF: boolean;
@@ -1714,6 +1730,28 @@ function OFRow({
   const anulacion = of.estado === "anulada" ? leerAnulacion(of.observacion) : null;
   const autor = opById(of.autorId);
   const revisor = opById(of.revisorId);
+  // Cuándo empieza Producción a fabricarla: el planteo tiene que estar antes.
+  // Corta en la línea de datos («Fabrica 03/12/26»); la frase entera, al pasar
+  // el ratón. Hoy en ámbar y vencida en rojo, con la palabra además del color.
+  const fechaFab = (() => {
+    const f = of.fechaLimitePlanteo;
+    if (!f) return null;
+    const hoy = hoyISO();
+    const cuando = f < hoy ? ("vencida" as const) : f === hoy ? ("hoy" as const) : ("futura" as const);
+    return {
+      cuando,
+      texto: cuando === "hoy" ? "Fabrica hoy" : `Fabrica ${fmt(f)}${cuando === "vencida" ? " · vencida" : ""}`,
+      clase:
+        cuando === "vencida"
+          ? "font-semibold text-error"
+          : cuando === "hoy"
+            ? "font-semibold text-amber-700 dark:text-amber-300"
+            : "text-text-muted",
+      title: `Producción empieza a fabricar el ${fmt(f)}: el planteo debe estar listo antes${
+        cuando === "vencida" ? " (ya vencida)" : ""
+      }`,
+    };
+  })();
   // El tiempo NO se calcula aquí: todo el reparto —quién, cuánto y en qué
   // herramienta— vive en TiempoOF, que es el único sitio de la tarjeta donde
   // sale un minuto.
@@ -1768,8 +1806,8 @@ function OFRow({
           title={
             of.fichandoRol
               ? of.fichandoRol === "revisar"
-                ? "Alguien la está revisando ahora: su reloj, en la caja de tiempo"
-                : "Alguien la está planteando ahora: su reloj, en la caja de tiempo"
+                ? "Alguien la está revisando ahora: su reloj, en el tiempo de la cabecera"
+                : "Alguien la está planteando ahora: su reloj, en el tiempo de la cabecera"
               : of.cerradaRps
               ? `Cerrada en RPS por ${opById(of.cerradaRps.por)?.nombre ?? of.cerradaRps.por}, ${fmtCierre(of.cerradaRps.at)}${
                   of.cerradaRps.modo !== "activo" ? ` (modo ${of.cerradaRps.modo}: no se llegó a escribir en RPS)` : ""
@@ -1828,6 +1866,13 @@ function OFRow({
             Para taller
           </span>
         )}
+        {/* Plegada, la fecha de Producción solo si aprieta: abierta va en la
+            línea de datos, y plegada una fecha lejana no pide nada. */}
+        {plegable && !abierta && fechaFab && fechaFab.cuando !== "futura" && (
+          <span className={`shrink-0 whitespace-nowrap text-[11px] ${fechaFab.clase}`} title={fechaFab.title}>
+            {fechaFab.cuando === "hoy" ? "Fabrica hoy" : "Fabricación vencida"}
+          </span>
+        )}
         {/* Plegada, lo justo para saber de quién es sin abrirla. */}
         {plegable && !abierta && autor && (
           <span
@@ -1839,10 +1884,55 @@ function OFRow({
           </span>
         )}
         <span className={`${plegable && !abierta && autor ? "" : "ml-auto "}shrink-0 whitespace-nowrap text-[11px] text-text-muted`}>{of.piezas} pz</span>
+        {/* El tiempo en la cabecera, y el detalle al pasar el ratón (ver
+            TiempoOF.tsx): la caja de abajo ocupaba media tarjeta. */}
+        <TiempoOF of={of} opById={opById} sinRevision={seccion.sinRevision === true} />
       </div>
 
       <p className={`mt-1 text-sm text-text ${plegable && !abierta ? "truncate" : ""}`}>{of.descripcion}</p>
     </>
+  );
+
+  // QUIÉN tiene el encargo: autor y luego revisor, en ese orden fijo (el del
+  // flujo: primero se plantea, después se repasa). Van en la fila de los
+  // botones, a la derecha: en su propia línea gastaban un renglón entero para
+  // dos nombres (Iván, 27/11/2026, al compactar la tarjeta). Si no caben al
+  // lado de los botones, bajan solos (flex-wrap).
+  const personas = (
+    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+      <LineaRol
+        rol="plantear"
+        rotulo="Autor"
+        op={autor}
+        live={of.fichandoRol === "plantear"}
+        control={
+          // Con UNA sola OF el selector sobra: el de arriba, "Asignar autor
+          // (pedido entero)", ya cambia exactamente esta OF. En cuanto hay dos
+          // OF vuelve, que ahí sí sirve: es como se reparte un pedido.
+          !soloLectura && puedeTraspasarAutor(of) && !pedidoDeUnaOF ? (
+            <Select
+              value={of.autorId}
+              onChange={(v) => v && onTraspasarAutor(of.id, v)}
+              placeholder={null}
+              alignRight
+              // `plano`: el nombre como texto con la flecha discreta, igual que
+              // el autor de la cabecera del pedido. Con caja gris destacaba más
+              // que Fichar (Iván, 27/11/2026).
+              plano
+              className="min-w-0"
+              options={opcionesOperario(operarios, miId)}
+            />
+          ) : null
+        }
+      />
+      {/* Donde no se revisa, el revisor solo sale si la OF trae uno de antes
+          (Diseño revisaba hasta el 26/10/2026). */}
+      {(!seccion.sinRevision || revisor) && (
+        // «Rev.» y «—»: en la fila de los botones, «Revisor Sin asignar» hacía
+        // bajar a las dos personas a otra línea. El nombre entero, en la pista.
+        <LineaRol rol="revisar" rotulo="Rev." nombreRol="Revisor" op={revisor} live={of.fichandoRol === "revisar"} />
+      )}
+    </div>
   );
 
   return (
@@ -1850,7 +1940,7 @@ function OFRow({
     // plegados de la ficha. Con `glass-chip` —el de los botones— las tarjetas
     // de OF tenían un canto distinto del resto.
     <li
-      className={`bloque-3d rounded-xl p-3 transition-[opacity,box-shadow] motion-reduce:transition-none ${
+      className={`bloque-3d rounded-xl px-3 py-2.5 transition-[opacity,box-shadow] motion-reduce:transition-none ${
         resalte === "fuera"
           ? "opacity-45"
           : // `outline` y no `ring`: el relieve de `bloque-3d` es un
@@ -1885,8 +1975,36 @@ function OFRow({
               PLEGADO, y no truncado con puntos suspensivos: son 160 caracteres de
               media y hasta 400, así que a la vista convertiría cada OF en un
               párrafo y la ficha de un pedido de cinco en un muro. Cerrado ocupa una
-              línea; abierto, el texto entero sin recortar. */}
-          {of.detalleVenta && <DetalleVenta texto={of.detalleVenta} />}
+              línea; abierto, el texto entero sin recortar.
+              LOS DATOS DE LA OF EN UNA SOLA LÍNEA (Iván, 27/11/2026): descripción,
+              material, fecha de Producción y rotulación iban cada uno en su fila
+              de ancho entero, y la tarjeta medía 250-330 px para cuatro datos
+              cortos. Abierta, la descripción baja debajo de la línea. */}
+          {(of.detalleVenta || of.reservasMaterial !== undefined || fechaFab || of.rotulacion) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              {of.detalleVenta && <DetalleVenta texto={of.detalleVenta} enFila />}
+              {/* `reservasMaterial` sigue siendo la señal de "hay dato de RPS": el
+                  mock no lo rellena, y ahí no se enseña nada en vez de mentir con
+                  un "sin material". */}
+              {of.reservasMaterial !== undefined && (
+                <MaterialChip materiales={of.materiales} compras={of.compras} hoy={hoyISO()} enFila />
+              )}
+              {fechaFab && (
+                <span className={`inline-flex items-center gap-1 text-[11px] ${fechaFab.clase}`} title={fechaFab.title}>
+                  <IconoFabrica className="size-3.5" />
+                  {fechaFab.texto}
+                </span>
+              )}
+              {/* Gris y sin caja, como el resto de la línea: el fondo de color
+                  queda para lo que avisa (Iván, 16/10/2026). */}
+              {of.rotulacion && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-text-muted">
+                  <IconoEtiqueta className="size-3.5" />
+                  Rotulación <b className="font-semibold text-text">{of.rotulacion}</b>
+                </span>
+              )}
+            </div>
+          )}
 
           {of.avisos && of.avisos.length > 0 && (
             <div className="mt-1.5 space-y-1 recuadro rounded-md px-2.5 py-1.5">
@@ -1902,42 +2020,6 @@ function OFRow({
             </div>
           )}
 
-          {of.fechaLimitePlanteo && (
-            <p
-              // LAS LÍNEAS DE DATOS DE LA OF (producción, material, rotulación,
-              // compras, avisos, devolución) van con el icono en la MISMA columna,
-              // a 10 px del borde: donde cae el icono dentro del chip de material,
-              // que es un botón con su propio borde. Cada una llevaba su margen y
-              // los iconos quedaban en escalera.
-              className={`mt-1.5 flex items-start gap-1.5 px-2.5 text-[11px] ${
-                of.fechaLimitePlanteo < hoyISO()
-                  ? "font-semibold text-error"
-                  : "text-text-muted"
-              }`}
-              title="Fecha en la que Producción tiene planificado empezar a fabricar esta OF: el planteo de Oficina Técnica debe estar terminado antes."
-            >
-              <IconoFabrica className="mt-px size-3.5" />
-              <span>
-                Producción empieza a fabricar el {fmt(of.fechaLimitePlanteo)} — el planteo debe estar
-                listo antes
-                {of.fechaLimitePlanteo < hoyISO() ? " (ya vencida)" : ""}
-              </span>
-            </p>
-          )}
-
-          {/* Como la línea de Producción: gris y sin caja. Con caja azul era la
-              única línea de dato con fondo, entre otras que no lo llevan, y
-              parecía un aviso. El fondo de color queda para lo que avisa
-              (compras que faltan, devolución) (Iván, 16/10/2026). */}
-          {of.rotulacion && (
-            <p className="mt-1.5 flex items-start gap-1.5 px-2.5 text-[11px] text-text-muted">
-              <IconoEtiqueta className="mt-px size-3.5" />
-              <span>
-                Rotulación: <b className="font-semibold text-text">{of.rotulacion}</b>
-              </span>
-            </p>
-          )}
-
           {/* Solo cuando el chip de material NO puede contarlo. Los dos salían del
               mismo hecho —hay una compra pendiente— y quedaban uno encima del otro
               diciendo lo mismo; el chip además dice QUÉ se pidió, a quién y si
@@ -1950,14 +2032,6 @@ function OFRow({
             </p>
           )}
 
-          {/* `reservasMaterial` sigue siendo la señal de "hay dato de RPS": el mock
-              no lo rellena, y ahí no se enseña nada en vez de mentir con un
-              "sin material asignado". */}
-          {of.reservasMaterial !== undefined && (
-            <div className="mt-1.5">
-              <MaterialChip materiales={of.materiales} compras={of.compras} hoy={hoyISO()} />
-            </div>
-          )}
 
           {/* La nota del revisor. En una OF anulada este campo lleva otra cosa —el
               motivo de la anulación, que ya sale en el distintivo— y repetirlo aquí
@@ -1976,64 +2050,9 @@ function OFRow({
             />
           )}
 
-          {/* Quién y cuánto, en un solo bloque: una línea por rol con la persona y
-              su tiempo al lado (ver LineaRol para el porqué). Antes esto estaba
-              partido en dos —los minutos aquí, los nombres cuatro líneas más
-              abajo— y había que emparejarlos de cabeza.
-
-              Orden fijo: autor y luego revisor, que es el del flujo de trabajo
-              (primero se plantea, después se repasa). Es un orden que no se mueve
-              nunca; ordenar por tiempo haría que la misma OF se recolocase sola
-              según quién llevase más minutos ese día, y ver los mismos nombres en
-              dos órdenes distintos es justo lo que despistaba en la queja. */}
-          {/* Autor y revisor en UNA línea: cada uno en su caja gastaba dos
-              renglones para dos nombres. Si el selector de autor no cabe al lado,
-              el revisor baja solo (flex-wrap). */}
-          {/* Sin caja gris alrededor: una línea suelta basta para dos nombres
-              y la caja la hacía parecer otro bloque (Iván, 27/11/2026). */}
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-            <LineaRol
-              rol="plantear"
-              rotulo="Autor"
-              op={autor}
-              live={of.fichandoRol === "plantear"}
-              control={
-                // Con UNA sola OF el selector sobra: el de arriba, "Asignar autor
-                // (pedido entero)", ya cambia exactamente esta OF. Eran dos
-                // desplegables idénticos, uno encima del otro, y no había forma de
-                // saber en qué se diferenciaban — porque no se diferenciaban en
-                // nada. En cuanto hay dos OF vuelve, que ahí sí sirve: es como se
-                // reparte un pedido entre dos personas.
-                !soloLectura && puedeTraspasarAutor(of) && !pedidoDeUnaOF ? (
-                  <Select
-                    value={of.autorId}
-                    onChange={(v) => v && onTraspasarAutor(of.id, v)}
-                    placeholder={null}
-                    alignRight
-                    className="min-w-0"
-                    options={opcionesOperario(operarios, miId)}
-                  />
-                ) : null
-              }
-            />
-            {/* Donde no se revisa, el revisor solo sale si la OF trae uno de
-                antes (Diseño revisaba hasta el 26/10/2026). */}
-            {(!seccion.sinRevision || revisor) && (
-              <LineaRol
-                rol="revisar"
-                rotulo="Revisor"
-                op={revisor}
-                live={of.fichandoRol === "revisar"}
-              />
-            )}
-          </div>
-
-          {/* Todo el tiempo de la OF, en UN sitio: quién, cuánto y dónde lo apuntó.
-              Antes esto estaba repartido en cuatro sitios de esta misma tarjeta —los
-              minutos en las líneas de rol, el desglose de RPS aparte, el total, y
-              una línea que volvía a comparar los dos— diciendo los mismos números.
-              Ver la cabecera de TiempoOF.tsx. */}
-          <TiempoOF of={of} opById={opById} sinRevision={seccion.sinRevision === true} />
+          {/* Autor y revisor van en la fila de los botones, a la derecha (ver
+              `personas` arriba). En solo lectura no hay botones: van solos. */}
+          {soloLectura && <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">{personas}</div>}
 
           {/* archivos subidos a RPS */}
           {of.archivosRps && of.archivosRps.length > 0 && (
@@ -2069,8 +2088,10 @@ function OFRow({
               fichandoYoEsta={fichandoYoEsta}
               otrasEnMiReloj={otrasEnMiReloj}
               impedidoRevision={impedidoRevision}
+              impedidoDevolver={impedidoDevolver}
               fallosGuia={fallosGuia}
               onCoger={onCoger}
+              personas={personas}
             />
           )}
         </>
@@ -2104,10 +2125,14 @@ function AccionesOF({
   fichandoYoEsta,
   otrasEnMiReloj,
   impedidoRevision,
+  impedidoDevolver,
   fallosGuia,
   onCoger,
+  personas,
 }: {
   onCoger?: () => void;
+  /** Autor y revisor: van al final de la fila, a la derecha de los botones. */
+  personas?: React.ReactNode;
   of: OF;
   pedidoCodigo?: string;
   operarios: Operario[];
@@ -2115,6 +2140,8 @@ function AccionesOF({
   /** Por qué no se puede aprobar ni devolver todavía. Ver la guía de revisión:
    *  dar por buena una OF sin haberla repasado entera es lo que se evita. */
   impedidoRevision?: string | null;
+  /** Por qué no se puede devolver todavía: alguna ✗ sin decir qué falla. */
+  impedidoDevolver?: string | null;
   /** Las causas de lo que la guía marcó como fallo: llegan ya puestas al
    *  devolver. Faltaban aquí, en el botón de cada OF —el que se usa casi
    *  siempre—, y había que volver a elegirlas (Iván, 16/10/2026). */
@@ -2263,7 +2290,11 @@ function AccionesOF({
   // Salvo en Diseño: allí la fila es fichar y «Finalizar», y lo demás
   // —«Recuperar» una finalizada, anular— va en "⋯" aunque sea solo (Iván,
   // 26/10/2026). Suelto, «Recuperar» parecía lo siguiente que tocaba hacer.
-  const cajonSiempre = !!finalizarOF && enCajon.length > 0;
+  //
+  // Y ANULAR, SIEMPRE EN EL CAJÓN (Iván, 27/11/2026, comité de la tarjeta):
+  // cuando era la única opción de más salía suelta, «Anular OF» en la misma
+  // fila que Fichar. Es rara y destructiva: un clic de más es lo que toca.
+  const cajonSiempre = (!!finalizarOF && enCajon.length > 0) || enCajon.some((a) => a.id === "anular");
   const menu = enCajon.length > 1 || cajonSiempre ? enCajon : [];
   const sueltas = enCajon.length > 1 || cajonSiempre ? aLaVista : acciones;
   const tono = { primaria: "teal", peligro: "rojo", neutra: "ghost" } as const;
@@ -2276,7 +2307,7 @@ function AccionesOF({
     : null;
 
   return (
-    <div className="mt-2.5 flex flex-wrap items-center gap-1">
+    <div className="mt-2 flex flex-wrap items-center gap-1">
       {pidiendoRevisor ? (
         // Los nombres EN LUGAR de los botones de la OF: la tarjeta no crece.
         <PedirRevisor
@@ -2425,7 +2456,7 @@ function AccionesOF({
                   : a.label
               }
               fallos={fallosGuia}
-              impedido={impedidoRevision}
+              impedido={impedidoDevolver}
               familias={of.familia ? [of.familia] : undefined}
               claseBoton={`${BOTON_BLOQUE} ${BOTON_NEUTRO}`}
               onDevolver={(obs) => onAccion([of.id], a.id, obs)}
@@ -2537,6 +2568,9 @@ function AccionesOF({
       />
         </>
       )}
+      {/* Autor y revisor, al otro extremo. Con el selector de revisor abierto
+          también se quedan: es la misma fila. */}
+      {personas && <div className="ml-auto min-w-0 pl-2">{personas}</div>}
       {dialogo}
     </div>
   );
