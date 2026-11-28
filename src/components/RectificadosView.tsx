@@ -20,6 +20,23 @@ import { useSoloLectura } from "./SoloLectura";
 const RESULTADOS = Object.entries(RESULTADOS_RECTIFICADO) as [ResultadoRectificado, string][];
 const fmt = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
 
+/** «Ya revisados» crece cada mes: se agrupa por el mes de la NC, en el orden
+ *  en que ya viene la lista (lo más reciente arriba). */
+function porMes(rs: Rectificado[]): [string, Rectificado[]][] {
+  const grupos = new Map<string, Rectificado[]>();
+  for (const r of rs) {
+    const mes = r.fecha.slice(0, 7);
+    grupos.set(mes, [...(grupos.get(mes) ?? []), r]);
+  }
+  return [...grupos].sort(([a], [b]) => b.localeCompare(a));
+}
+
+/** «2026-11» → «Noviembre 2026». */
+function nombreMes(mes: string): string {
+  const texto = new Date(`${mes}-15T12:00:00`).toLocaleDateString("es-ES", { month: "long", year: "numeric" }).replace(" de ", " ");
+  return texto.charAt(0).toLocaleUpperCase("es-ES") + texto.slice(1);
+}
+
 /** Calidad escribe en mayúsculas: en una tarjeta se lee mejor como frase. */
 function frase(texto: string): string {
   return texto
@@ -288,7 +305,20 @@ export function RectificadosView({
           </div>
         </div>
       )}
-      {visibles.length > 0 && <ul className="flex flex-col gap-2.5">{visibles.map(fila)}</ul>}
+      {visibles.length > 0 && apartado === "pendientes" && <ul className="flex flex-col gap-2.5">{visibles.map(fila)}</ul>}
+      {visibles.length > 0 && apartado === "revisados" && (
+        <div className="flex flex-col gap-6">
+          {porMes(visibles).map(([mes, rs]) => (
+            <section key={mes} aria-label={nombreMes(mes)}>
+              <h2 className="mb-2 flex items-baseline gap-2 px-1 text-sm font-semibold text-text">
+                {nombreMes(mes)}
+                <span className="text-xs font-normal tabular-nums text-text-muted">{rs.length}</span>
+              </h2>
+              <ul className="flex flex-col gap-2.5">{rs.map(fila)}</ul>
+            </section>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
