@@ -8,6 +8,7 @@ import {
   type ResultadoRectificado,
 } from "@/lib/rectificados";
 import type { SeccionId } from "@/lib/secciones";
+import { BOTON_BLOQUE, BOTON_CIERRE, BOTON_NEUTRO, TAMANO_BLOQUE } from "@/lib/botones";
 import { useSoloLectura } from "./SoloLectura";
 
 // ─── Rectificados por revisar ────────────────────────────────────────────────
@@ -27,24 +28,42 @@ function frase(texto: string): string {
     .replace(/(^|[.]\s+)(\p{L})/gu, (_, antes: string, letra: string) => antes + letra.toLocaleUpperCase("es-ES"));
 }
 
-/** La píldora de cada salida: el color dice cómo acabó, el texto lo confirma. */
-const TONO: Record<ResultadoRectificado, string> = {
-  corregido: "bg-teal-500/15 text-teal-800 dark:text-teal-300",
-  ya_estaba: "bg-sky-500/15 text-sky-800 dark:text-sky-300",
-  no_hace_falta: "bg-[var(--hero-relleno)] text-text-muted",
+/** El punto de la píldora de cada salida, como el estado de una OF: la
+ *  píldora es neutra y el color solo dice cómo acabó. */
+const PUNTO: Record<ResultadoRectificado, string> = {
+  corregido: "bg-teal-600 dark:bg-teal-400",
+  ya_estaba: "bg-sky-500",
+  no_hace_falta: "bg-text-muted",
 };
 
-function Pedido({ etiqueta, codigo, onAbrir }: { etiqueta: string; codigo: string; onAbrir: (codigo: string) => void }) {
+/** El código de un pedido, con la jerarquía de la tarjeta de OF de la ficha:
+ *  subrayado punteado para que se vea que se abre (lo abre el Board en
+ *  Coordina). `rounded-none!`: en hero todo botón es una píldora. */
+function Pedido({
+  etiqueta,
+  codigo,
+  principal,
+  onAbrir,
+}: {
+  etiqueta: string;
+  codigo: string;
+  principal?: boolean;
+  onAbrir: (codigo: string) => void;
+}) {
   return (
-    <button
-      type="button"
-      onClick={() => onAbrir(codigo)}
-      title={`Abre el pedido ${codigo}`}
-      className="min-w-0 rounded-2xl bg-[var(--hero-relleno)] px-3.5 py-2 text-left transition-colors hover:bg-[var(--hero-relleno-encima)]"
-    >
-      <span className="block text-[11px] text-text-muted">{etiqueta}</span>
-      <span className="block text-sm font-semibold tabular-nums text-text">{codigo}</span>
-    </button>
+    <span className="inline-flex min-w-0 items-baseline gap-1.5">
+      <span className="text-[11px] text-text-muted">{etiqueta}</span>
+      <button
+        type="button"
+        onClick={() => onAbrir(codigo)}
+        title={`Abre el pedido ${codigo} en Coordina`}
+        className={`rounded-none! font-mono tracking-[0.02em] underline decoration-dotted underline-offset-[3px] hover:decoration-solid ${
+          principal ? "text-[15px] font-bold text-text" : "text-[13px] font-semibold text-text-muted hover:text-text"
+        }`}
+      >
+        {codigo}
+      </button>
+    </span>
   );
 }
 
@@ -64,55 +83,84 @@ function Fila({
   onDeshacer: (nc: string) => void;
 }) {
   const textos = [...new Set([r.descripcion, ...r.defectos].filter(Boolean))];
+  // Lo ya revisado pliega lo que dijo Calidad, como una corrección enviada.
+  const [verNota, setVerNota] = useState(!r.marca);
+  const conBarra = r.marca ? true : !soloLectura;
   return (
-    <li className="tarjeta-rectificado p-5">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <h3 className="min-w-0 text-base font-semibold text-text">{r.cliente ?? "Cliente sin datos"}</h3>
-        <span className="text-xs tabular-nums text-text-muted">{r.nc} · {fmt(r.fecha)}</span>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Pedido etiqueta="Falló" codigo={r.pedido} onAbrir={onAbrirPedido} />
-        <span aria-hidden className="text-text-muted">→</span>
+    <li className="bloque-3d rounded-xl px-4 py-3">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <Pedido etiqueta="Falló" codigo={r.pedido} principal onAbrir={onAbrirPedido} />
+        <span aria-hidden className="px-0.5 text-text-muted">→</span>
         <Pedido etiqueta="Rectificado en" codigo={r.rectificativo} onAbrir={onAbrirPedido} />
+        <span className="ml-auto text-[11px] tabular-nums text-text-muted" title={`No conformidad del ${fmt(r.fecha)}`}>
+          <span className="font-mono">{r.nc}</span> · {fmt(r.fecha)}
+        </span>
       </div>
-      {textos.length > 0 && (
-        <div className="mt-3 rounded-2xl bg-brand-400/15 px-4 py-3">
-          <p className="text-[11px] font-semibold text-text-muted">Qué dice Calidad</p>
-          {textos.map((t) => (
-            <p key={t} className="mt-0.5 text-sm text-text">{frase(t)}</p>
-          ))}
+      <p className="mt-1 truncate text-sm text-text" title={r.cliente ?? undefined}>
+        {r.cliente ?? "Cliente sin datos"}
+      </p>
+      {textos.length > 0 &&
+        (verNota ? (
+          <div className={`mt-2 rounded-md border-l-[3px] bg-surface-2 px-2.5 py-1.5 ${r.marca ? "border-border" : "border-amber-500"}`}>
+            {r.marca ? (
+              <button
+                type="button"
+                onClick={() => setVerNota(false)}
+                className="flex items-center gap-1.5 rounded-none! text-[11px] font-semibold text-text-muted hover:text-text"
+              >
+                <span aria-hidden className="text-[9px]">▾</span>
+                Qué dijo Calidad
+              </button>
+            ) : (
+              <p className="text-[11px] font-semibold text-text">Qué dice Calidad</p>
+            )}
+            <div className="mt-0.5 max-w-[75ch] space-y-1">
+              {textos.map((t) => (
+                <p key={t} className="text-[13px] leading-snug text-text">{frase(t)}</p>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setVerNota(true)}
+            className="mt-2 flex w-full min-w-0 items-center gap-1.5 rounded-md! border-l-[3px] border-border bg-surface-2 px-2.5 py-1 text-left text-[11px] text-text-muted hover:text-text"
+          >
+            <span aria-hidden className="text-[9px]">▸</span>
+            <span className="shrink-0 font-semibold">Qué dijo Calidad</span>
+            <span className="truncate">· {frase(textos[0])}</span>
+          </button>
+        ))}
+      {conBarra && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          {r.marca ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-text">
+                <span aria-hidden className={`size-1.5 rounded-full ${PUNTO[r.marca.resultado]}`} />
+                {RESULTADOS_RECTIFICADO[r.marca.resultado]}
+              </span>
+              <span className="text-[11px] tabular-nums text-text-muted">{r.marca.nombre} · {fmt(r.marca.en)}</span>
+              {!soloLectura && (
+                <button type="button" disabled={ocupada} onClick={() => onDeshacer(r.nc)} className={`ml-auto ${TAMANO_BLOQUE} ${BOTON_NEUTRO}`}>
+                  Deshacer
+                </button>
+              )}
+            </>
+          ) : (
+            RESULTADOS.map(([id, texto], i) => (
+              <button
+                key={id}
+                type="button"
+                disabled={ocupada}
+                onClick={() => onMarcar(r.nc, id)}
+                className={i === 0 ? `${BOTON_BLOQUE} ${BOTON_CIERRE}` : `${TAMANO_BLOQUE} ${BOTON_NEUTRO}`}
+              >
+                {texto}
+              </button>
+            ))
+          )}
         </div>
       )}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {r.marca ? (
-          <>
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${TONO[r.marca.resultado]}`}>
-              {RESULTADOS_RECTIFICADO[r.marca.resultado]}
-            </span>
-            <span className="text-xs text-text-muted">{r.marca.nombre} · {fmt(r.marca.en)}</span>
-            {!soloLectura && (
-              <button type="button" disabled={ocupada} onClick={() => onDeshacer(r.nc)} className="chip-3d ml-auto px-3.5 py-1.5 text-xs font-semibold text-text disabled:opacity-55">
-                Deshacer
-              </button>
-            )}
-          </>
-        ) : (
-          !soloLectura &&
-          RESULTADOS.map(([id, texto], i) => (
-            <button
-              key={id}
-              type="button"
-              disabled={ocupada}
-              onClick={() => onMarcar(r.nc, id)}
-              className={`px-4 py-2 text-xs font-semibold disabled:opacity-55 ${
-                i === 0 ? "boton-3d bg-brand-400 text-brand-950 hover:bg-brand-300" : "chip-3d text-text"
-              }`}
-            >
-              {texto}
-            </button>
-          ))
-        )}
-      </div>
     </li>
   );
 }
@@ -224,9 +272,9 @@ export function RectificadosView({
         <p role="alert" className="mb-4 rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-text">{error}</p>
       )}
       {!filas && !error && (
-        <div aria-label="Cargando" className="flex flex-col gap-3">
+        <div aria-label="Cargando" className="flex flex-col gap-2.5">
           {[0, 1].map((i) => (
-            <div key={i} className="tarjeta-rectificado h-44 animate-pulse motion-reduce:animate-none" />
+            <div key={i} className="bloque-3d h-32 rounded-xl animate-pulse motion-reduce:animate-none" />
           ))}
         </div>
       )}
@@ -240,7 +288,7 @@ export function RectificadosView({
           </div>
         </div>
       )}
-      {visibles.length > 0 && <ul className="flex flex-col gap-3">{visibles.map(fila)}</ul>}
+      {visibles.length > 0 && <ul className="flex flex-col gap-2.5">{visibles.map(fila)}</ul>}
     </section>
   );
 }
